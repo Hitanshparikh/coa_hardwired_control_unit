@@ -1,0 +1,5219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hardwired Control Unit — 3D Simulator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@200;300;400;600;700;900&family=Orbitron:wght@400;700;900&display=swap');
+
+:root {
+  --bg: #050608;
+  --bg2: #080b0f;
+  --glass: rgba(255,255,255,0.035);
+  --glass-border: rgba(255,255,255,0.08);
+  --glass-hover: rgba(255,255,255,0.06);
+  --accent: #00d4ff;
+  --accent2: #7c3aed;
+  --accent3: #10b981;
+  --accent4: #f59e0b;
+  --accent5: #ef4444;
+  --accent6: #ec4899;
+  --text: #e2e8f0;
+  --text-dim: #64748b;
+  --text-bright: #f8fafc;
+  --glow: 0 0 20px rgba(0,212,255,0.4);
+  --glow2: 0 0 20px rgba(124,58,237,0.4);
+  --glow3: 0 0 15px rgba(16,185,129,0.4);
+  --panel-bg: rgba(8,12,20,0.85);
+  --wire-active: #00d4ff;
+  --wire-inactive: #1e293b;
+  --wire-data: #10b981;
+  --wire-control: #f59e0b;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Exo 2', sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* ─── NOISE OVERLAY ─── */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;
+  z-index:9999;
+  opacity:0.4;
+}
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:#050608; }
+::-webkit-scrollbar-thumb { background:rgba(0,212,255,0.3); border-radius:3px; }
+
+/* ─── HEADER ─── */
+#header {
+  position: sticky;
+  top:0;
+  z-index:100;
+  background: rgba(5,6,8,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 0 32px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-transform: uppercase;
+}
+
+.header-tags {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.tag {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  padding: 4px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.tag.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 12px rgba(0,212,255,0.2);
+}
+
+/* ─── HERO SECTION ─── */
+#hero {
+  position: relative;
+  height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#hero-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+.hero-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(28px, 5vw, 56px);
+  font-weight: 900;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #fff 0%, var(--accent) 50%, var(--accent2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 30px rgba(0,212,255,0.5));
+  animation: titlePulse 4s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+  0%,100% { filter: drop-shadow(0 0 30px rgba(0,212,255,0.5)); }
+  50% { filter: drop-shadow(0 0 60px rgba(0,212,255,0.9)); }
+}
+
+.hero-sub {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 4px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+
+.hero-stats {
+  display: flex;
+  gap: 32px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+.hstat {
+  text-align: center;
+}
+
+.hstat-val {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.hstat-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* ─── NAV TABS ─── */
+#nav-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 32px;
+  background: rgba(8,12,20,0.9);
+  border-bottom: 1px solid var(--glass-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+#nav-tabs::-webkit-scrollbar { display: none; }
+
+.nav-tab {
+  padding: 14px 24px;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-tab:hover { color: var(--text); }
+
+.nav-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.nav-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* ─── MAIN LAYOUT ─── */
+#main {
+  display: grid;
+  grid-template-columns: 300px 1fr 280px;
+  gap: 0;
+  min-height: calc(100vh - 64px - 320px - 46px);
+}
+
+/* ─── GLASS PANEL ─── */
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.panel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ─── LEFT SIDEBAR ─── */
+#sidebar-left {
+  padding: 20px;
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ─── CENTER ─── */
+#center {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ─── RIGHT SIDEBAR ─── */
+#sidebar-right {
+  padding: 20px;
+  border-left: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ─── SECTION PANEL ─── */
+.section-panel {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.section-panel .panel-header {
+  background: rgba(255,255,255,0.02);
+}
+
+.section-body {
+  padding: 16px;
+}
+
+/* ─── CONTROL BUTTONS ─── */
+.ctrl-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Exo 2', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.25s;
+  width: 100%;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+
+.ctrl-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s;
+}
+
+.ctrl-btn:hover::before { transform: translateX(100%); }
+.ctrl-btn:hover { border-color: var(--accent); color: var(--accent); box-shadow: var(--glow); }
+.ctrl-btn:active { transform: scale(0.97); }
+
+.ctrl-btn.primary {
+  background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(124,58,237,0.1));
+  border-color: rgba(0,212,255,0.4);
+  color: var(--accent);
+}
+
+.ctrl-btn.success { border-color: rgba(16,185,129,0.4); }
+.ctrl-btn.success:hover { border-color: var(--accent3); color: var(--accent3); box-shadow: var(--glow3); }
+.ctrl-btn.danger { border-color: rgba(239,68,68,0.3); }
+.ctrl-btn.danger:hover { border-color: var(--accent5); color: var(--accent5); box-shadow: 0 0 20px rgba(239,68,68,0.4); }
+.ctrl-btn.warn:hover { border-color: var(--accent4); color: var(--accent4); }
+
+.btn-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  background: rgba(255,255,255,0.05);
+  flex-shrink: 0;
+}
+
+/* ─── SPEED CONTROL ─── */
+.speed-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tune-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.tune-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tune-item label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.tune-item select,
+.tune-item input {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+}
+
+.speed-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'Share Tech Mono', monospace;
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--glass-border);
+  outline: none;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--accent);
+  border: 2px solid rgba(0,212,255,0.5);
+}
+
+/* ─── INSTRUCTION SET ─── */
+.instr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.instr-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.instr-item:hover {
+  background: var(--glass);
+  border-color: var(--glass-border);
+}
+
+.instr-item.selected {
+  background: rgba(0,212,255,0.08);
+  border-color: rgba(0,212,255,0.3);
+}
+
+.instr-item.executing {
+  background: rgba(0,212,255,0.15);
+  border-color: var(--accent);
+  animation: instrPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes instrPulse {
+  0%,100% { box-shadow: 0 0 8px rgba(0,212,255,0.3); }
+  50% { box-shadow: 0 0 20px rgba(0,212,255,0.7); }
+}
+
+.instr-opcode {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  background: rgba(0,212,255,0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  min-width: 44px;
+  text-align: center;
+}
+
+.instr-name {
+  font-family: 'Exo 2', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.instr-cycles {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* ─── 3D CANVAS AREA ─── */
+#sim-canvas-wrap {
+  position: relative;
+  height: 520px;
+  background: radial-gradient(ellipse at center, rgba(0,212,255,0.03) 0%, transparent 70%);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+#simCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.render-banner {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 8;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  background: rgba(5,6,8,0.86);
+  color: var(--text-dim);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  transition: all 0.25s ease;
+}
+
+.render-banner.ok {
+  border-color: rgba(16,185,129,0.5);
+  color: #34d399;
+}
+
+.render-banner.warn {
+  border-color: rgba(245,158,11,0.55);
+  color: #fbbf24;
+}
+
+.render-banner.err {
+  border-color: rgba(239,68,68,0.55);
+  color: #f87171;
+}
+
+.render-banner.info {
+  border-color: rgba(0,212,255,0.5);
+  color: #67e8f9;
+}
+
+.diag-banner {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  z-index: 8;
+  max-width: 360px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  background: rgba(5,6,8,0.9);
+  color: var(--text-dim);
+  backdrop-filter: blur(8px);
+}
+
+.diag-banner.ok { border-color: rgba(16,185,129,0.5); color: #34d399; }
+.diag-banner.warn { border-color: rgba(245,158,11,0.55); color: #fbbf24; }
+.diag-banner.err { border-color: rgba(239,68,68,0.55); color: #f87171; }
+.diag-banner.info { border-color: rgba(0,212,255,0.5); color: #67e8f9; }
+
+.canvas-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.canvas-overlay .corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: var(--accent);
+  border-style: solid;
+  opacity: 0.5;
+}
+
+.corner.tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; }
+.corner.tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; }
+.corner.bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; }
+.corner.br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
+
+.canvas-hud {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.viz-compare-overlay {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 6;
+  width: min(320px, calc(100% - 28px));
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: rgba(5,6,8,0.86);
+  color: var(--text-dim);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  backdrop-filter: blur(8px);
+  display: none;
+  pointer-events: none;
+}
+
+.viz-compare-overlay.visible {
+  display: block;
+}
+
+.viz-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.viz-compare-card {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.viz-settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.viz-settings-grid .viz-setting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+}
+
+.heatmap-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: rgba(0,0,0,0.25);
+  margin-right: 4px;
+}
+
+.hud-chip {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  padding: 4px 12px;
+  background: rgba(5,6,8,0.8);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+/* ─── REGISTER FILE ─── */
+.reg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.reg-item {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  transition: all 0.3s;
+}
+
+.reg-item.changed {
+  border-color: var(--accent3);
+  box-shadow: 0 0 12px rgba(16,185,129,0.3);
+  animation: regChange 0.5s ease-out;
+}
+
+@keyframes regChange {
+  0% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.reg-name {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.reg-val {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: bold;
+  margin-top: 2px;
+}
+
+/* ─── TIMING DIAGRAM ─── */
+#timingWrap {
+  position: relative;
+  overflow: hidden;
+}
+
+#timingCanvas {
+  display: block;
+  width: 100%;
+}
+
+/* ─── TRUTH TABLE ─── */
+.truth-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+}
+
+.truth-table th {
+  padding: 8px 10px;
+  text-align: center;
+  background: rgba(0,212,255,0.08);
+  border: 1px solid var(--glass-border);
+  color: var(--accent);
+  letter-spacing: 1px;
+  font-size: 10px;
+}
+
+.truth-table td {
+  padding: 7px 10px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.04);
+  color: var(--text-dim);
+  transition: all 0.3s;
+}
+
+.truth-table tr:hover td { background: var(--glass); color: var(--text); }
+
+.truth-table .active-row td {
+  background: rgba(0,212,255,0.1);
+  color: var(--accent);
+  border-color: rgba(0,212,255,0.2);
+}
+
+.bit-1 { color: var(--accent3) !important; }
+.bit-0 { color: var(--text-dim) !important; }
+
+/* ─── SIGNAL MONITOR ─── */
+.signal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.signal-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid transparent;
+  transition: all 0.3s;
+}
+
+.signal-row.active {
+  border-color: rgba(0,212,255,0.3);
+  background: rgba(0,212,255,0.05);
+}
+
+.signal-name {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  flex: 1;
+  color: var(--text-dim);
+}
+
+.signal-name.active { color: var(--accent); }
+
+.signal-led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #1e293b;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.signal-led.on {
+  background: var(--accent3);
+  box-shadow: 0 0 8px var(--accent3);
+}
+
+.signal-val {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  min-width: 24px;
+  text-align: right;
+}
+
+.eq-box {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  background: rgba(0,0,0,0.25);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.eq-title {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.eq-val {
+  margin-top: 4px;
+  color: var(--accent3);
+}
+
+.assert-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.assert-chip {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  background: rgba(0,0,0,0.25);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.assert-chip strong {
+  color: var(--text);
+  margin-left: 6px;
+}
+
+.assert-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.trace-list {
+  margin-top: 8px;
+  max-height: 120px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trace-item {
+  padding: 5px 7px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  background: rgba(0,0,0,0.2);
+}
+
+.assert-item {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.2);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.assert-item.ok {
+  border-color: rgba(16,185,129,0.35);
+  color: #34d399;
+}
+
+.assert-item.warn {
+  border-color: rgba(245,158,11,0.35);
+  color: #fbbf24;
+}
+
+.assert-item.err {
+  border-color: rgba(239,68,68,0.35);
+  color: #f87171;
+}
+
+/* ─── LOG CONSOLE ─── */
+#log-console {
+  background: rgba(0,0,0,0.5);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  height: 160px;
+  overflow-y: auto;
+  padding: 12px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.log-entry {
+  display: flex;
+  gap: 12px;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  animation: logFade 0.3s ease-out;
+}
+
+@keyframes logFade {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.log-time { color: var(--text-dim); min-width: 70px; }
+.log-tag { min-width: 60px; }
+.log-tag.info { color: var(--accent); }
+.log-tag.ok { color: var(--accent3); }
+.log-tag.warn { color: var(--accent4); }
+.log-tag.err { color: var(--accent5); }
+.log-msg { color: var(--text); }
+
+/* ─── MICRO OPERATIONS ─── */
+.micro-ops {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.micro-op {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.3s;
+  opacity: 0.4;
+}
+
+.micro-op.active {
+  opacity: 1;
+  background: rgba(16,185,129,0.08);
+  border-color: rgba(16,185,129,0.3);
+  box-shadow: 0 0 10px rgba(16,185,129,0.1);
+}
+
+.micro-op.done {
+  opacity: 0.6;
+}
+
+.micro-step {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  color: var(--text-dim);
+  min-width: 20px;
+}
+
+.micro-op.active .micro-step { color: var(--accent3); }
+
+.micro-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  flex: 1;
+}
+
+.micro-op.active .micro-text { color: var(--text); }
+
+.micro-arrow {
+  font-size: 12px;
+  color: var(--accent4);
+}
+
+/* ─── SECTION TABS ─── */
+.section-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0;
+  border-bottom: 1px solid var(--glass-border);
+  overflow-x: auto;
+}
+
+.section-tab {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.section-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.section-tab:hover:not(.active) { color: var(--text); }
+
+/* ─── COMPONENT DIAGRAM SECTION ─── */
+#componentDiagramWrap {
+  height: 400px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  background: radial-gradient(ellipse at 30% 50%, rgba(124,58,237,0.04) 0%, transparent 60%), radial-gradient(ellipse at 70% 50%, rgba(0,212,255,0.04) 0%, transparent 60%);
+}
+
+#diagramCanvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* ─── INFO CARDS ─── */
+.info-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 14px;
+  transition: all 0.3s;
+}
+
+.info-card:hover {
+  border-color: rgba(0,212,255,0.2);
+  background: var(--glass-hover);
+}
+
+.info-card-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.info-card-text {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+.info-card-text strong { color: var(--text); }
+
+/* ─── CLOCK PULSE ─── */
+.clock-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+}
+
+.clock-icon {
+  font-size: 18px;
+  animation: clockSpin 1s linear infinite;
+}
+
+@keyframes clockSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.clock-info { flex: 1; }
+.clock-hz {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  color: var(--accent4);
+}
+
+.clock-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ─── STATUS BAR ─── */
+#status-bar {
+  position: sticky;
+  bottom: 0;
+  background: rgba(5,6,8,0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--glass-border);
+  padding: 0 32px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent3);
+  box-shadow: 0 0 6px var(--accent3);
+}
+
+/* ─── MEMORY DISPLAY ─── */
+.mem-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+
+.mem-cell {
+  padding: 4px 2px;
+  text-align: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.03);
+  color: var(--text-dim);
+  transition: all 0.3s;
+}
+
+.mem-cell.active {
+  background: rgba(0,212,255,0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 6px rgba(0,212,255,0.3);
+}
+
+.mem-cell.fetched {
+  background: rgba(245,158,11,0.15);
+  border-color: var(--accent4);
+  color: var(--accent4);
+}
+
+/* ─── WAVEFORM DISPLAY ─── */
+#waveCanvas {
+  display: block;
+  background: transparent;
+  border-radius: 8px;
+}
+
+/* ─── TOOLTIP ─── */
+.tooltip {
+  position: fixed;
+  z-index: 1000;
+  background: rgba(8,12,20,0.95);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  max-width: 220px;
+  pointer-events: none;
+  display: none;
+  backdrop-filter: blur(10px);
+}
+
+.tooltip.visible { display: block; }
+.tooltip-title { font-family: 'Orbitron', sans-serif; font-size: 10px; color: var(--accent); letter-spacing: 2px; margin-bottom: 6px; }
+.tooltip-text { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+
+/* ─── PROGRESS STEPS ─── */
+.phase-indicator {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.phase-step {
+  flex: 1;
+  padding: 8px 4px;
+  text-align: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border-right: 1px solid var(--glass-border);
+  transition: all 0.4s;
+}
+
+.phase-step:last-child { border-right: none; }
+
+.phase-step.active {
+  background: rgba(0,212,255,0.12);
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.phase-step.done {
+  background: rgba(16,185,129,0.08);
+  color: var(--accent3);
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 1100px) {
+  #main { grid-template-columns: 260px 1fr 240px; }
+}
+@media (max-width: 900px) {
+  #main { grid-template-columns: 1fr; }
+  #sidebar-left, #sidebar-right { border: none; border-top: 1px solid var(--glass-border); }
+}
+
+/* ─── TOOLTIP POPUP ─── */
+.comp-tooltip {
+  position: absolute;
+  background: rgba(5,6,8,0.97);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 16px;
+  pointer-events: none;
+  z-index: 50;
+  max-width: 200px;
+  display: none;
+  box-shadow: 0 0 20px rgba(0,212,255,0.2);
+}
+
+.comp-tooltip.show { display: block; }
+.comp-tooltip-title { font-family: 'Orbitron', monospace; font-size: 10px; color: var(--accent); letter-spacing: 2px; margin-bottom: 6px; }
+.comp-tooltip-body { font-size: 11px; color: var(--text-dim); line-height: 1.6; }
+
+/* ─── TABS CONTENT ─── */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ─── ANIMATED BORDER ─── */
+@keyframes borderRotate {
+  from { --border-angle: 0turn; }
+  to { --border-angle: 1turn; }
+}
+
+/* ─── BOOLEAN EXPRESSION ─── */
+.bool-expr {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  color: var(--accent4);
+  margin: 4px 0;
+  line-height: 1.8;
+}
+
+.bool-expr .var { color: var(--accent); }
+.bool-expr .op { color: var(--accent2); }
+.bool-expr .comment { color: var(--text-dim); font-size: 10px; }
+
+/* ─── PIPELINE VIEW ─── */
+.pipeline-stage {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.pipe-label {
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.4);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  min-width: 90px;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--glass-border);
+}
+
+.pipe-data {
+  flex: 1;
+  padding: 8px 12px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pipe-stage.active .pipe-label { color: var(--accent); background: rgba(0,212,255,0.08); }
+.pipe-stage.active .pipe-data { color: var(--text); }
+.pipe-stage.active { border-color: rgba(0,212,255,0.3); }
+
+</style>
+</head>
+<body>
+
+<!-- ─── HEADER ─── -->
+<header id="header">
+  <div class="logo">HCU · SIM</div>
+  <div style="display:flex;gap:16px;align-items:center">
+    <div class="tag">COA · CS3xx</div>
+    <div class="tag active" id="simStatus">● SIMULATION READY</div>
+    <div class="tag" id="clockTag">CLK: 1.0 Hz</div>
+  </div>
+</header>
+
+<!-- ─── HERO ─── -->
+<section id="hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="hero-content">
+    <div class="hero-title">Hardwired Control Unit</div>
+    <div class="hero-sub">Computer Organisation &amp; Architecture · Interactive 3D Simulator</div>
+    <div class="hero-stats">
+      <div class="hstat"><div class="hstat-val">16</div><div class="hstat-label">Instructions</div></div>
+      <div class="hstat"><div class="hstat-val">6</div><div class="hstat-label">Phases</div></div>
+      <div class="hstat"><div class="hstat-val">32</div><div class="hstat-label">Control Signals</div></div>
+      <div class="hstat"><div class="hstat-val">8</div><div class="hstat-label">Registers</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── NAV TABS ─── -->
+<nav id="nav-tabs">
+  <div class="nav-tab active" onclick="switchTab('simulator')"><span class="nav-dot"></span>3D Simulator</div>
+  <div class="nav-tab" onclick="switchTab('architecture')"><span class="nav-dot" style="color:var(--accent2)"></span>Architecture</div>
+  <div class="nav-tab" onclick="switchTab('timing')"><span class="nav-dot" style="color:var(--accent4)"></span>Timing Diagram</div>
+  <div class="nav-tab" onclick="switchTab('truth')"><span class="nav-dot" style="color:var(--accent3)"></span>Truth Table</div>
+  <div class="nav-tab" onclick="switchTab('microops')"><span class="nav-dot" style="color:var(--accent6)"></span>Micro-Operations</div>
+  <div class="nav-tab" onclick="switchTab('theory')"><span class="nav-dot" style="color:var(--accent5)"></span>Theory</div>
+</nav>
+
+<!-- ═══════════════════════════════════════════ TAB: SIMULATOR ═══ -->
+<div class="tab-content active" id="tab-simulator">
+<div id="main">
+
+  <!-- LEFT SIDEBAR -->
+  <aside id="sidebar-left">
+
+    <!-- Controls -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent)"></div>Simulation Control</div>
+      <div class="section-body" style="display:flex;flex-direction:column;gap:8px">
+        <button class="ctrl-btn primary" onclick="toggleRun()"><span class="btn-icon">▶</span><span id="runBtnText">Start Simulation</span></button>
+        <button class="ctrl-btn success" onclick="stepOnce()"><span class="btn-icon">⏭</span>Step Once</button>
+        <button class="ctrl-btn" onclick="stepCycle()"><span class="btn-icon">⚡</span>Next Cycle</button>
+        <button class="ctrl-btn warn" onclick="resetSim()"><span class="btn-icon">↺</span>Reset</button>
+        <button class="ctrl-btn danger" onclick="randomProgram()"><span class="btn-icon">🎲</span>Random Program</button>
+        <button class="ctrl-btn" onclick="runSelfTest()"><span class="btn-icon">🧪</span>Run Self-Test</button>
+        <div class="speed-control" style="margin-top:6px">
+          <div class="speed-label"><span>Clock Speed</span><span id="speedVal">1.0 Hz</span></div>
+          <input type="range" min="1" max="20" value="4" id="speedSlider" oninput="updateSpeed(this.value)">
+        </div>
+      </div>
+    </div>
+
+    <!-- Tuning -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent2)"></div>Simulation Tuning</div>
+      <div class="section-body" style="display:flex;flex-direction:column;gap:10px">
+        <div class="tune-grid">
+          <div class="tune-item">
+            <label for="cfgDataWidth">Data Width</label>
+            <select id="cfgDataWidth">
+              <option value="8">8-bit</option>
+              <option value="16" selected>16-bit</option>
+              <option value="32">32-bit</option>
+            </select>
+          </div>
+          <div class="tune-item">
+            <label for="cfgRegCount">Registers</label>
+            <select id="cfgRegCount">
+              <option value="4">4</option>
+              <option value="8" selected>8</option>
+              <option value="16">16</option>
+            </select>
+          </div>
+          <div class="tune-item">
+            <label for="cfgMemSize">Memory Cells</label>
+            <select id="cfgMemSize">
+              <option value="32">32</option>
+              <option value="64" selected>64</option>
+              <option value="128">128</option>
+            </select>
+          </div>
+          <div class="tune-item">
+            <label for="cfgMemLatency">Mem Latency</label>
+            <select id="cfgMemLatency">
+              <option value="1" selected>1 cycle</option>
+              <option value="2">2 cycles</option>
+              <option value="3">3 cycles</option>
+              <option value="4">4 cycles</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="ctrl-btn" onclick="applySimulationConfig()"><span class="btn-icon">⚙</span>Apply</button>
+          <button class="ctrl-btn warn" onclick="resetConfigDefaults()"><span class="btn-icon">↺</span>Defaults</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase Indicator -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent4)"></div>Instruction Phase</div>
+      <div class="section-body">
+        <div class="phase-indicator" id="phaseBar">
+          <div class="phase-step" id="ph0">FET</div>
+          <div class="phase-step" id="ph1">DEC</div>
+          <div class="phase-step" id="ph2">EXE</div>
+          <div class="phase-step" id="ph3">MEM</div>
+          <div class="phase-step" id="ph4">WB</div>
+          <div class="phase-step" id="ph5">INT</div>
+        </div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim)">
+            <span>Current Instruction:</span>
+            <span id="curInstrLabel" style="color:var(--accent);font-family:'Share Tech Mono',monospace">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim)">
+            <span>Cycle Count:</span>
+            <span id="cycleCount" style="color:var(--accent4);font-family:'Share Tech Mono',monospace">0</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim)">
+            <span>PC:</span>
+            <span id="pcVal" style="color:var(--accent3);font-family:'Share Tech Mono',monospace">0x00</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim)">
+            <span>IR:</span>
+            <span id="irVal" style="color:var(--accent2);font-family:'Share Tech Mono',monospace">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clock -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent4)"></div>Clock Generator</div>
+      <div class="section-body">
+        <div class="clock-display">
+          <div id="clockIcon" style="font-size:18px">⏱</div>
+          <div class="clock-info">
+            <div class="clock-hz" id="clkFreq">1.0 Hz</div>
+            <div class="clock-label">System Clock</div>
+          </div>
+          <div id="clkPulse" style="width:12px;height:12px;border-radius:50%;background:var(--accent4);transition:all 0.1s"></div>
+        </div>
+        <canvas id="waveCanvas" height="60" style="width:100%;margin-top:10px;border-radius:6px;border:1px solid var(--glass-border)"></canvas>
+      </div>
+    </div>
+
+    <!-- Instruction Memory -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent6)"></div>Instruction Memory</div>
+      <div class="section-body">
+        <div class="mem-grid" id="memGrid"></div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- CENTER -->
+  <main id="center">
+
+    <!-- 3D Canvas -->
+    <div id="sim-canvas-wrap">
+      <canvas id="simCanvas"></canvas>
+      <div id="renderBanner" class="render-banner info">3D engine: initializing...</div>
+      <div id="diagnosticBanner" class="diag-banner info">Diagnostics: waiting for checks...</div>
+      <div id="vizCompareOverlay" class="viz-compare-overlay"></div>
+      <div class="canvas-overlay">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div class="canvas-hud">
+          <div class="hud-chip"><div class="hud-dot" style="background:var(--accent3)"></div>DATAPATH ACTIVE</div>
+          <div class="hud-chip"><div class="hud-dot" style="background:var(--accent4)"></div><span id="hudPhase">IDLE</span></div>
+          <div class="hud-chip"><div class="hud-dot" style="background:var(--accent2)"></div>HARDWIRED CU</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instruction Set -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent2)"></div>Instruction Set · Select to Execute</div>
+      <div class="section-body">
+        <div class="instr-list" id="instrList"></div>
+      </div>
+    </div>
+
+    <!-- Assembler & Program System -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent6)"></div>Assembler · Write Programs</div>
+      <div class="section-body">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button onclick="assembleProgram(document.getElementById('asmSource').value); updateAssemblerPanel()" class="btn btn-primary" style="flex:1">Assemble</button>
+          <button onclick="loadProgramToMemory()" class="btn btn-ghost" style="flex:1">Load to Mem</button>
+          <button onclick="document.getElementById('progFile').click()" class="btn btn-ghost" style="flex:1">Import</button>
+          <button onclick="exportProgramJSON()" class="btn btn-ghost" style="flex:1">Export</button>
+        </div>
+        <input type="file" id="progFile" accept=".json" style="display:none" onchange="importProgramJSON(this.files[0])">
+        <textarea id="asmSource" placeholder="# Assembly code here&#10;# R0..R7 = registers&#10;# Labels end with :&#10;# ; = comment&#10;&#10;ADD R1, R2, R3&#10;BEQ R1, R2, loop" style="width:100%;height:80px;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);color:var(--text);border-radius:6px;padding:8px;font-family:'Share Tech Mono',monospace;font-size:10px;resize:none"></textarea>
+        <div id="asmOutput" style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);margin-top:6px;max-height:120px;overflow:auto;background:rgba(0,0,0,0.2);padding:6px;border-radius:4px"></div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:3px;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase">▸ Execution Log</div>
+      <div id="log-console"></div>
+    </div>
+
+  </main>
+
+  <!-- RIGHT SIDEBAR -->
+  <aside id="sidebar-right">
+
+    <!-- Registers -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent3)"></div>Register File</div>
+      <div class="section-body">
+        <div class="reg-grid" id="regGrid"></div>
+      </div>
+    </div>
+
+    <!-- Control Signals -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent5)"></div>Control Signals</div>
+      <div class="section-body">
+        <div class="signal-list" id="signalList"></div>
+        <div class="eq-box">
+          <div class="eq-title">Equation Engine</div>
+          <select id="eqSignalSelect" style="width:100%;margin-bottom:6px;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);color:var(--text);border-radius:6px;padding:6px 8px;font-family:'Share Tech Mono',monospace;font-size:11px" onchange="updateEquationViewer()"></select>
+          <div id="eqExpression">C = f(opcode, T, flags)</div>
+          <div class="eq-val" id="eqValue">Current value: 0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALU Status -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent4)"></div>ALU / Flags</div>
+      <div class="section-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="reg-item"><div class="reg-name">RESULT</div><div class="reg-val" id="aluResult">0x0000</div></div>
+          <div class="reg-item"><div class="reg-name">OP</div><div class="reg-val" id="aluOp" style="color:var(--accent2)">—</div></div>
+          <div class="reg-item"><div class="reg-name">ZERO</div><div class="reg-val" id="flagZ" style="color:var(--text-dim)">0</div></div>
+          <div class="reg-item"><div class="reg-name">CARRY</div><div class="reg-val" id="flagC" style="color:var(--text-dim)">0</div></div>
+          <div class="reg-item"><div class="reg-name">NEG</div><div class="reg-val" id="flagN" style="color:var(--text-dim)">0</div></div>
+          <div class="reg-item"><div class="reg-name">OVF</div><div class="reg-val" id="flagV" style="color:var(--text-dim)">0</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Bus -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent)"></div>Bus Monitor</div>
+      <div class="section-body">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="reg-item"><div class="reg-name">ADDRESS BUS</div><div class="reg-val" id="addrBus">0x0000</div></div>
+          <div class="reg-item"><div class="reg-name">DATA BUS</div><div class="reg-val" id="dataBus" style="color:var(--accent3)">0x0000</div></div>
+          <div class="reg-item"><div class="reg-name">CONTROL BUS</div><div class="reg-val" id="ctrlBus" style="color:var(--accent4)">IDLE</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ISA Schema -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent4)"></div>ISA Overview</div>
+      <div class="section-body" id="isaPanel">
+        <!-- Populated by buildISAPanel() -->
+      </div>
+    </div>
+
+    <!-- Timing Metrics & CPI -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent4)"></div>Timing Metrics & CPI</div>
+      <div class="section-body" id="timingMetricsPanel">
+        <!-- Populated by buildTimingPanel() -->
+      </div>
+    </div>
+
+    <!-- Breakpoints & Watchpoints -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent6)"></div>Breakpoints & Watchpoints</div>
+      <div class="section-body">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input type="number" id="bpAddress" placeholder="Address" min="0" max="255" style="width:60px;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);color:var(--text);border-radius:4px;padding:4px;font-family:'Share Tech Mono',monospace;font-size:10px">
+          <button onclick="addBreakpoint(parseInt(document.getElementById('bpAddress').value || 0)); updateBreakpointsPanel()" class="btn btn-primary" style="flex:1">Add BP</button>
+        </div>
+        <div id="breakpointsPanel" style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim)">
+          <div style="color:var(--text-dim)">No breakpoints</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline & Hazard Detection (Phase 5) -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent2)"></div>Pipeline & Hazard Detection</div>
+      <div class="section-body" id="pipelinePanel">
+        <!-- Populated by buildPipelinePanel() -->
+      </div>
+    </div>
+
+    <!-- Hardwired vs Microprogrammed (Phase 5) -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent)"></div>Hardwired vs Microprogrammed Side-by-Side</div>
+      <div class="section-body" id="comparisonPanel">
+        <!-- Populated by buildComparisonPanel() -->
+      </div>
+    </div>
+
+    <!-- Fault Injection (Phase 6) -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent5)"></div>Fault Injection</div>
+      <div class="section-body" id="faultInjectionPanel">
+        <!-- Populated by buildFaultInjectionPanel() -->
+      </div>
+    </div>
+
+    <!-- Scenarios Manager (Phase 6) -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent4)"></div>Scenarios Manager</div>
+      <div class="section-body" id="scenariosPanel">
+        <!-- Populated by buildScenariosPanel() -->
+      </div>
+    </div>
+
+    <!-- Guided Labs (Phase 6) -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent3)"></div>Guided Labs</div>
+      <div class="section-body" id="labsPanel">
+        <!-- Populated by buildLabsPanel() -->
+      </div>
+    </div>
+
+    <!-- Visualization Controls -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent)"></div>Visualization Controls</div>
+      <div class="section-body" id="visualizationPanel">
+        <!-- Populated by buildVisualizationPanel() -->
+      </div>
+    </div>
+
+    <!-- Validation -->
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent5)"></div>Validation Monitor</div>
+      <div class="section-body">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button class="ctrl-btn" onclick="runGoldenReferenceSuite()"><span class="btn-icon">✅</span>Golden Tests</button>
+          <button class="ctrl-btn" onclick="exportValidationReport()"><span class="btn-icon">⤓</span>Export Report</button>
+        </div>
+        <div class="assert-summary">
+          <div class="assert-chip">Checks<strong id="assertChecks">0</strong></div>
+          <div class="assert-chip">Errors<strong id="assertErrors">0</strong></div>
+        </div>
+        <div class="assert-list" id="assertList"></div>
+        <div class="trace-list" id="diagTrace"></div>
+      </div>
+    </div>
+
+  </aside>
+</div>
+</div>
+
+<!-- ═════════════════════════════ TAB: ARCHITECTURE ═══ -->
+<div class="tab-content" id="tab-architecture">
+  <div style="padding:24px;display:flex;flex-direction:column;gap:20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div class="section-panel">
+        <div class="panel-header"><div class="panel-dot" style="background:var(--accent)"></div>Hardwired CU Architecture</div>
+        <div class="section-body">
+          <div id="componentDiagramWrap">
+            <canvas id="diagramCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="info-card">
+          <div class="info-card-title">What is a Hardwired CU?</div>
+          <div class="info-card-text">A <strong>Hardwired Control Unit</strong> generates control signals using <strong>fixed digital logic circuits</strong> — combinational logic gates, flip-flops, decoders, and state machines — instead of microprogram memory. It is <strong>blazingly fast</strong> but <strong>inflexible</strong> once designed.</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title">Key Components</div>
+          <div class="info-card-text">
+            <strong>Instruction Register (IR)</strong> — holds the fetched instruction<br>
+            <strong>Instruction Decoder</strong> — decodes opcode bits<br>
+            <strong>Sequence Counter</strong> — tracks execution step T0–T5<br>
+            <strong>Condition Logic</strong> — reads flags (Z,C,N,V)<br>
+            <strong>Logic Gates Array</strong> — generates 32 control signals<br>
+            <strong>Clock</strong> — synchronizes state transitions
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title">Control Signal Generation</div>
+          <div class="info-card-text">
+            Each control signal <strong>Cₙ</strong> is a Boolean function:<br><br>
+            <span style="font-family:'Share Tech Mono',monospace;color:var(--accent4);font-size:12px">Cₙ = f(IR, Tₛ, Flags)</span><br><br>
+            Where <strong>IR</strong> is the opcode, <strong>Tₛ</strong> is timing step, and <strong>Flags</strong> are condition codes.
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title">HCU vs Microprogrammed CU</div>
+          <div class="info-card-text">
+            <strong>Speed:</strong> HCU is 3–10× faster<br>
+            <strong>Flexibility:</strong> Microprogrammed wins<br>
+            <strong>Design Cost:</strong> HCU is harder to design<br>
+            <strong>Area:</strong> HCU uses less silicon<br>
+            <strong>Used in:</strong> RISC processors (ARM, MIPS)
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent3)"></div>Boolean Expressions for Control Signals</div>
+      <div class="section-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div class="bool-expr"><span class="var">PCout</span> = <span class="op">T₀</span><br><span class="comment">// Fetch: output PC to MAR</span></div>
+          <div class="bool-expr"><span class="var">MARin</span> = <span class="op">T₀</span><br><span class="comment">// Load MAR from PC</span></div>
+          <div class="bool-expr"><span class="var">MEMread</span> = <span class="op">T₁</span><br><span class="comment">// Read memory</span></div>
+          <div class="bool-expr"><span class="var">MDRin</span> = <span class="op">T₁</span><br><span class="comment">// MDR ← Memory[MAR]</span></div>
+          <div class="bool-expr"><span class="var">IRin</span> = <span class="op">T₂</span><br><span class="comment">// IR ← MDR</span></div>
+          <div class="bool-expr"><span class="var">PCincr</span> = <span class="op">T₂</span><br><span class="comment">// PC ← PC + 1</span></div>
+          <div class="bool-expr"><span class="var">ALUop</span> = <span class="op">T₃</span> · <span class="var">ADD</span><br><span class="comment">// Execute ADD</span></div>
+          <div class="bool-expr"><span class="var">Zflag</span> = <span class="op">(result==0)</span><br><span class="comment">// Zero flag</span></div>
+          <div class="bool-expr"><span class="var">WBen</span> = <span class="op">T₄</span> · <span class="var">Rd</span><br><span class="comment">// Writeback enable</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ TAB: TIMING DIAGRAM ═══ -->
+<div class="tab-content" id="tab-timing">
+  <div style="padding:24px;display:flex;flex-direction:column;gap:20px">
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent4)"></div>Signal Timing Diagram · Control Signals vs Clock Cycles</div>
+      <div class="section-body">
+        <div id="timingWrap">
+          <canvas id="timingCanvas" height="420"></canvas>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="info-card">
+        <div class="info-card-title">Reading the Timing Diagram</div>
+        <div class="info-card-text">
+          Each row represents a <strong>control signal</strong>. A <strong>HIGH (1)</strong> pulse means the signal is active in that cycle. Signals are synchronized to the <strong>rising edge</strong> of the clock. The timing diagram directly corresponds to the <strong>truth table</strong> of the hardwired logic.
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">Cycle-by-Cycle Breakdown</div>
+        <div class="info-card-text">
+          <strong>T₀:</strong> Fetch — PC→MAR, read memory<br>
+          <strong>T₁:</strong> Fetch — MDR→IR, PC++<br>
+          <strong>T₂:</strong> Decode — opcode decoded<br>
+          <strong>T₃:</strong> Execute — ALU operates<br>
+          <strong>T₄:</strong> Memory access (LW/SW)<br>
+          <strong>T₅:</strong> Writeback — result to Rd
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════ TAB: TRUTH TABLE ═══ -->
+<div class="tab-content" id="tab-truth">
+  <div style="padding:24px;display:flex;flex-direction:column;gap:16px">
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent3)"></div>Control Signal Truth Table · Instruction × Time Step → Signal</div>
+      <div class="section-body" style="overflow-x:auto">
+        <table class="truth-table" id="truthTable"></table>
+      </div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-title">How Hardwired Logic Uses This Table</div>
+      <div class="info-card-text">
+        Each cell in this table becomes a <strong>product term</strong> in a Sum-of-Products (SOP) Boolean expression implemented using AND/OR/NOT gates. The decoder expands the opcode bits, the counter selects the row (Tₛ), and the AND-array drives each column. This is essentially a <strong>Programmable Logic Array (PLA)</strong> structure.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ TAB: MICRO-OPERATIONS ═══ -->
+<div class="tab-content" id="tab-microops">
+  <div style="padding:24px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:grid;grid-template-columns:280px 1fr;gap:16px">
+      <div class="section-panel">
+        <div class="panel-header"><div class="panel-dot" style="background:var(--accent6)"></div>Select Instruction</div>
+        <div class="section-body">
+          <div class="instr-list" id="microInstrList"></div>
+        </div>
+      </div>
+      <div class="section-panel">
+        <div class="panel-header"><div class="panel-dot" style="background:var(--accent6)"></div>Micro-Operations Breakdown</div>
+        <div class="section-body">
+          <div id="microOpsDisplay" class="micro-ops"></div>
+        </div>
+      </div>
+    </div>
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent)"></div>Register Transfer Language (RTL)</div>
+      <div class="section-body">
+        <div id="rtlDisplay" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text-dim);line-height:2;padding:8px;background:rgba(0,0,0,0.3);border-radius:6px;min-height:80px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════ TAB: THEORY ═══ -->
+<div class="tab-content" id="tab-theory">
+  <div style="padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+    <div class="section-panel">
+      <div class="panel-header"><div class="panel-dot" style="background:var(--accent5)"></div>Control Unit — Core Concepts</div>
+      <div class="section-body" style="display:flex;flex-direction:column;gap:12px">
+        <div class="info-card">
+          <div class="info-card-title">Definition</div>
+          <div class="info-card-text">The <strong>Control Unit (CU)</strong> is the brain of the CPU. It orchestrates all operations by issuing <strong>control signals</strong> that direct the datapath components (ALU, registers, memory) when and how to operate.</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title">Hardwired Design Philosophy</div>
+          <div class="info-card-text">
+            In a hardwired CU, the control logic is <strong>implemented directly in hardware</strong> as a finite state machine (FSM). The state transitions and output signals are fixed at design time. The FSM accepts:<br><br>
+            • <strong>Opcode bits</strong> from IR<br>
+            • <strong>Timing signals</strong> from sequence counter<br>
+            • <strong>Status flags</strong> from ALU/registers
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title">Finite State Machine Model</div>
+          <div class="info-card-text">
+            The HCU operates as a <strong>Moore FSM</strong> where outputs depend only on current state, or a <strong>Mealy FSM</strong> where outputs depend on state + inputs. Modern CPUs use Mealy-type for conditional branches.
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title">Design Steps</div>
+          <div class="info-card-text">
+            1. Define instruction set &amp; RTL operations<br>
+            2. Map each operation to control signals<br>
+            3. Build truth table (instruction × time step)<br>
+            4. Minimize Boolean expressions (K-map / Quine-McCluskey)<br>
+            5. Implement with gates or PLA
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="section-panel">
+        <div class="panel-header"><div class="panel-dot" style="background:var(--accent2)"></div>State Diagram</div>
+        <div class="section-body" style="position:relative;height:280px">
+          <canvas id="fsmCanvas" style="width:100%;height:100%"></canvas>
+        </div>
+      </div>
+      <div class="section-panel">
+        <div class="panel-header"><div class="panel-dot" style="background:var(--accent3)"></div>Implementation Trade-offs</div>
+        <div class="section-body">
+          <table class="truth-table" style="font-size:11px">
+            <tr><th>Property</th><th>Hardwired</th><th>Microprogrammed</th></tr>
+            <tr><td>Speed</td><td class="bit-1">Very Fast</td><td class="bit-0">Slower</td></tr>
+            <tr><td>Flexibility</td><td class="bit-0">Fixed</td><td class="bit-1">Reprogrammable</td></tr>
+            <tr><td>Complexity</td><td class="bit-0">High design</td><td class="bit-1">Manageable</td></tr>
+            <tr><td>Silicon Area</td><td class="bit-1">Small</td><td class="bit-0">Larger</td></tr>
+            <tr><td>Debug</td><td class="bit-0">Difficult</td><td class="bit-1">Easy</td></tr>
+            <tr><td>RISC Use</td><td class="bit-1">Yes</td><td class="bit-0">No</td></tr>
+            <tr><td>CISC Use</td><td class="bit-0">Rare</td><td class="bit-1">Common</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="status-bar">
+  <div class="status-item"><div class="status-led"></div><span>COA Simulator v3.0</span></div>
+  <div class="status-item"><span id="statusMsg">Ready — Select an instruction and press Start</span></div>
+  <div class="status-item"><span id="statusTime">00:00:00</span></div>
+</div>
+
+<div class="tooltip" id="tooltip">
+  <div class="tooltip-title" id="ttTitle">Component</div>
+  <div class="tooltip-text" id="ttText">Hover for info</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+
+<!-- ════════════════════ JAVASCRIPT ════════════════════ -->
+<script>
+// ───────────────────────────────────
+//  DATA DEFINITIONS
+// ───────────────────────────────────
+
+const INSTRUCTIONS = [
+  { name:'ADD', opcode:'0000', cycles:5, color:'#00d4ff', desc:'Rd ← Rs1 + Rs2', group:'ALU' },
+  { name:'SUB', opcode:'0001', cycles:5, color:'#7c3aed', desc:'Rd ← Rs1 - Rs2', group:'ALU' },
+  { name:'AND', opcode:'0010', cycles:5, color:'#10b981', desc:'Rd ← Rs1 & Rs2', group:'LOGIC' },
+  { name:'OR',  opcode:'0011', cycles:5, color:'#f59e0b', desc:'Rd ← Rs1 | Rs2', group:'LOGIC' },
+  { name:'XOR', opcode:'0100', cycles:5, color:'#ec4899', desc:'Rd ← Rs1 ⊕ Rs2', group:'LOGIC' },
+  { name:'NOT', opcode:'0101', cycles:4, color:'#ef4444', desc:'Rd ← ~Rs1', group:'LOGIC' },
+  { name:'SHL', opcode:'0110', cycles:4, color:'#06b6d4', desc:'Rd ← Rs1 << 1', group:'SHIFT' },
+  { name:'SHR', opcode:'0111', cycles:4, color:'#8b5cf6', desc:'Rd ← Rs1 >> 1', group:'SHIFT' },
+  { name:'LW',  opcode:'1000', cycles:6, color:'#84cc16', desc:'Rd ← Memory[Rs1+imm]', group:'MEM' },
+  { name:'SW',  opcode:'1001', cycles:6, color:'#f97316', desc:'Memory[Rs1+imm] ← Rs2', group:'MEM' },
+  { name:'MOV', opcode:'1010', cycles:4, color:'#14b8a6', desc:'Rd ← Rs1', group:'TRANSFER' },
+  { name:'LI',  opcode:'1011', cycles:4, color:'#a78bfa', desc:'Rd ← Immediate', group:'TRANSFER' },
+  { name:'BEQ', opcode:'1100', cycles:5, color:'#fbbf24', desc:'if Z: PC ← PC+offset', group:'BRANCH' },
+  { name:'BNE', opcode:'1101', cycles:5, color:'#f87171', desc:'if !Z: PC ← PC+offset', group:'BRANCH' },
+  { name:'JMP', opcode:'1110', cycles:3, color:'#34d399', desc:'PC ← target', group:'JUMP' },
+  { name:'HLT', opcode:'1111', cycles:2, color:'#94a3b8', desc:'HALT execution', group:'SYS' },
+];
+
+const CONTROL_SIGNALS = [
+  { name:'PCout',   active:false, phase:[0] },
+  { name:'MARin',   active:false, phase:[0] },
+  { name:'MEMread', active:false, phase:[1] },
+  { name:'MDRin',   active:false, phase:[1] },
+  { name:'IRin',    active:false, phase:[2] },
+  { name:'PCincr',  active:false, phase:[2] },
+  { name:'Decode',  active:false, phase:[2] },
+  { name:'Rs1out',  active:false, phase:[3] },
+  { name:'Rs2out',  active:false, phase:[3] },
+  { name:'ALUop',   active:false, phase:[3] },
+  { name:'Zset',    active:false, phase:[3] },
+  { name:'MAR2in',  active:false, phase:[3] },
+  { name:'MEMwrite',active:false, phase:[5] },
+  { name:'MDR2in',  active:false, phase:[4] },
+  { name:'WBen',    active:false, phase:[5] },
+  { name:'Rdin',    active:false, phase:[5] },
+];
+
+const CONTROL_EQUATIONS = {
+  PCout:   { expr: 'T0', eval: ctx => ctx.phase === 0 },
+  MARin:   { expr: 'T0', eval: ctx => ctx.phase === 0 },
+  MEMread: { expr: 'T1 + (T4·LW)', eval: ctx => ctx.phase === 1 || (ctx.phase === 4 && ctx.isLoad) },
+  MDRin:   { expr: 'T1 + (T4·LW)', eval: ctx => ctx.phase === 1 || (ctx.phase === 4 && ctx.isLoad) },
+  IRin:    { expr: 'T2', eval: ctx => ctx.phase === 2 },
+  PCincr:  { expr: 'T2', eval: ctx => ctx.phase === 2 },
+  Decode:  { expr: 'T2', eval: ctx => ctx.phase === 2 },
+  Rs1out:  { expr: 'T3·OPexec', eval: ctx => ctx.phase === 3 && ctx.isExecOp },
+  Rs2out:  { expr: 'T3·OP2src', eval: ctx => ctx.phase === 3 && ctx.isTwoOperand },
+  ALUop:   { expr: 'T3·ALU_GROUP', eval: ctx => ctx.phase === 3 && ctx.isAluOp },
+  Zset:    { expr: 'T3·ALU_GROUP', eval: ctx => ctx.phase === 3 && ctx.isAluOp },
+  MAR2in:  { expr: 'T3·(LW+SW)', eval: ctx => ctx.phase === 3 && ctx.isMemOp },
+  MEMwrite:{ expr: 'T5·SW', eval: ctx => ctx.phase === 5 && ctx.isStore },
+  MDR2in:  { expr: 'T4·SW', eval: ctx => ctx.phase === 4 && ctx.isStore },
+  WBen:    { expr: 'T5·WRITEBACK', eval: ctx => ctx.phase === 5 && ctx.hasWriteback },
+  Rdin:    { expr: 'T5·WRITEBACK', eval: ctx => ctx.phase === 5 && ctx.hasWriteback },
+};
+
+const MICRO_OPS = {
+  ADD:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR[opcode], Decode','T3: A <- Rs1, B <- Rs2, ALU -> ADD','T4: Flags <- {Z,C,N,V}','T5: Rd <- ALUresult'],
+  SUB:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR[opcode], Decode','T3: A <- Rs1, B <- Rs2, ALU -> SUB','T4: Flags <- {Z,C,N,V}','T5: Rd <- ALUresult'],
+  AND:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR[opcode], Decode','T3: A <- Rs1, B <- Rs2, ALU -> AND','T4: Flags <- {Z}','T5: Rd <- ALUresult'],
+  OR: ['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR[opcode], Decode','T3: A <- Rs1, B <- Rs2, ALU -> OR','T4: Flags <- {Z}','T5: Rd <- ALUresult'],
+  XOR:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR[opcode], Decode','T3: A <- Rs1, B <- Rs2, ALU -> XOR','T4: Flags <- {Z}','T5: Rd <- ALUresult'],
+  NOT:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR[opcode], Decode','T3: A <- Rs1, ALU -> NOT','T4: Rd <- ALUresult'],
+  SHL:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR[opcode], Decode','T3: A <- Rs1, ALU -> SHL','T4: Rd <- ALUresult, C <- shifted_bit'],
+  SHR:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR[opcode], Decode','T3: A <- Rs1, ALU -> SHR','T4: Rd <- ALUresult, C <- shifted_bit'],
+  LW: ['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR, Decode','T3: MAR <- Rs1 + imm','T4: MDR <- Memory[MAR]','T5: Rd <- MDR'],
+  SW: ['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR, Decode','T3: MAR <- Rs1 + imm','T4: MDR <- Rs2','T5: Memory[MAR] <- MDR'],
+  MOV:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR, Decode','T3: Rd <- Rs1'],
+  LI: ['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR, Decode','T3: Rd <- IR[imm15:0]'],
+  BEQ:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR, Decode','T3: temp <- Rs1 - Rs2, set Z','T4: if Z: PC <- PC + IR[offset]'],
+  BNE:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR, Decode','T3: temp <- Rs1 - Rs2, set Z','T4: if !Z: PC <- PC + IR[offset]'],
+  JMP:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1','T2: IR <- MDR, Decode, PC <- IR[target]'],
+  HLT:['T0: MAR <- PC','T1: MDR <- Memory[MAR], PC <- PC+1'],
+};
+
+let state = {
+  running: false,
+  selectedInstr: 0,
+  currentPhase: -1,
+  cycleCount: 0,
+  pc: 0,
+  ir: '—',
+  registers: { R0:0, R1:0x0042, R2:0x00FF, R3:0x0010, R4:0x1234, R5:0, R6:0, R7:0 },
+  memory: new Array(64).fill(0).map((_,i) => i < 16 ? Math.floor(Math.random()*0xFF) : 0),
+  flags: { Z:0, C:0, N:0, V:0 },
+  alu: { result: 0, op: '—' },
+  signals: {},
+  simInterval: null,
+  stepInterval: null,
+  clkPhase: false,
+  clockHz: 1.0,
+  waveHistory: [],
+  phaseLabels: ['FETCH','FETCH','DECODE','EXECUTE','MEMORY','WRITEBACK'],
+  program: [],
+  programIdx: 0,
+  startTime: null,
+  config: {
+    dataWidth: 16,
+    registerCount: 8,
+    memorySize: 64,
+    memoryLatency: 1,
+  },
+  validation: {
+    checks: 0,
+    errors: 0,
+    history: [],
+  },
+  diagnostics: {
+    level: 'info',
+    message: 'Diagnostics idle',
+    hint: 'Start simulation or run self-test',
+    traces: [],
+  },
+  controlEngine: {
+    selectedSignal: 'PCout',
+    lastDerived: {},
+  },
+  programEngine: {
+    sourceCode: '',
+    assembledProgram: [],
+    labels: {},
+    selectedLine: -1,
+    errors: [],
+  },
+  timingEngine: {
+    breakpoints: [], // [{ address, type: 'instr'|'reg', target: 'R0'|0 }]
+    watchpoints: [], // [{ address, register: 'R0', oldVal, newVal }]
+    cpiBatches: [], // Running CPI histogram per instruction type
+    latencyLog: [], // [{ instr, cycles, phase, endTime }]
+    edgeModel: 'complete', // 'complete' | 'rising' | 'falling'
+    cacheEnabled: false,
+    cache: { hits: 0, misses: 0, lineSize: 4, lines: 8 },
+    cpiStats: { totalCycles: 0, totalInstructions: 0, avgCpi: 0 },
+  },
+  pipelineEngine: {
+    mode: 'single-cycle', // 'single-cycle' | 'pipeline-5stage'
+    stages: ['IF', 'ID', 'EX', 'MEM', 'WB'], // 5-stage names
+    pipeline: [], // Current instructions in flight: [{stage:'IF', instr, pc, cycle}]
+    hazards: [], // Detected hazards: [{type:'RAW'|'WAU'|'CMP', cycle, instr, blocking}]
+    forwardingEnabled: true,
+    stallsInjected: 0,
+    pipelineDepth: 5,
+    instructionHistory: [], // All finalized instructions
+  },
+  comparisonMode: {
+    enabled: false,
+    hardwiredResult: { pc: 0, registers: {}, cycles: 0 },
+    microprogrammedResult: { pc: 0, registers: {}, cycles: 0 },
+    differences: [],
+  },
+  visualization: {
+    labelsEnabled: true,
+    heatmapEnabled: true,
+    compareOverlayEnabled: true,
+    qualityPreset: 'high',
+    compareSnapshot: null,
+  },
+  faultInjection: {
+    enabled: false,
+    stuckAtFault: { register: null, bit: null, value: 0 }, // Stuck-at fault
+    memoryDelayMs: 0, // Extra latency for memory ops
+    clockJitter: 0, // +/- cycles
+    faultLog: [],
+  },
+  scenarios: {
+    saved: [], // [{name, state, timestamp}]
+    currentScenario: null,
+  },
+  labs: {
+    activeLabId: null,
+    labs: [
+      {
+        id: 'lab1-alu-basics',
+        title: 'ALU Basics: Addition & Flags',
+        description: 'Understand how ADD sets C/V/Z/N flags',
+        instructions: 'Execute ADD R1, R2, R3. Verify flags based on inputs.',
+        expectedChecks: [
+          { message: 'ADD completed successfully', condition: (state) => state.alu.op === 'ADD' && state.currentPhase >= 4 },
+          { message: 'Flags are valid', condition: (state) => ['Z', 'C', 'N', 'V'].every(flag => state.flags[flag] === 0 || state.flags[flag] === 1) },
+        ],
+        completed: false,
+      },
+      {
+        id: 'lab2-memory-access',
+        title: 'Memory Access: Load & Store',
+        description: 'Practice LW and SW instructions',
+        instructions: 'Execute LW to load from memory, then SW to store back',
+        expectedChecks: [
+          { message: 'Memory access reached', condition: (state) => state.currentPhase >= 4 },
+          { message: 'Destination register updated', condition: (state) => state.registers['R3'] !== 0 },
+        ],
+        completed: false,
+      },
+      {
+        id: 'lab3-pipeline-hazards',
+        title: 'Pipeline Hazards: Data Forwarding',
+        description: 'Observe RAW hazards and forwarding mitigation',
+        instructions: 'Run consecutive arithmetic ops; toggle forwarding to see effect',
+        expectedChecks: [
+          { message: 'Pipeline mode enabled', condition: (state) => state.pipelineEngine.mode === 'pipeline-5stage' },
+          { message: 'Forwarding state captured', condition: (state) => state.pipelineEngine.forwardingEnabled === true || state.pipelineEngine.forwardingEnabled === false },
+          { message: 'Hazard detected', condition: (state) => state.pipelineEngine.hazards.some(h => h.type.includes('RAW')) },
+        ],
+        completed: false,
+      },
+    ],
+    completedLabs: [],
+  },
+};
+
+// ───────────────────────────────────
+//  PHASE 6: INTERACTIVITY & LABS
+// ───────────────────────────────────
+
+function injectStuckAtFault(register, bit, value) {
+  state.faultInjection.stuckAtFault = { register, bit, value };
+  state.faultInjection.enabled = true;
+  state.faultInjection.faultLog.push({
+    timestamp: new Date().toISOString(),
+    type: 'STUCK_AT',
+    register,
+    bit,
+    value,
+  });
+  addTrace(`Stuck-at fault: ${register}[${bit}]=${value}`);
+}
+
+function applyStuckAtFault() {
+  const { stuckAtFault } = state.faultInjection;
+  if (!state.faultInjection.enabled || !stuckAtFault.register || stuckAtFault.bit === null || stuckAtFault.bit === undefined) return;
+
+  const reg = state.registers[stuckAtFault.register];
+  if (reg === undefined) return;
+
+  const mask = 1 << stuckAtFault.bit;
+  if (stuckAtFault.value === 1) {
+    state.registers[stuckAtFault.register] = reg | mask; // Force bit to 1
+  } else {
+    state.registers[stuckAtFault.register] = reg & ~mask; // Force bit to 0
+  }
+}
+
+function injectMemoryDelay(delayMs) {
+  state.faultInjection.memoryDelayMs = delayMs;
+  if (delayMs > 0) {
+    state.faultInjection.enabled = true;
+    addTrace(`Memory delay fault: +${delayMs}ms`);
+  }
+}
+
+function injectClockJitter(jitterCycles) {
+  state.faultInjection.clockJitter = jitterCycles;
+  if (jitterCycles !== 0) {
+    state.faultInjection.enabled = true;
+    addTrace(`Clock jitter fault: ±${jitterCycles} cycles`);
+  }
+}
+
+function disableFaultInjection() {
+  state.faultInjection.enabled = false;
+  state.faultInjection.stuckAtFault = { register: null, bit: null, value: 0 };
+  state.faultInjection.memoryDelayMs = 0;
+  state.faultInjection.clockJitter = 0;
+  addTrace('All fault injections disabled');
+}
+
+function simulateMemoryAccess(address, isWrite = false) {
+  const { cache, cacheEnabled } = state.timingEngine;
+  let latency = state.config.memoryLatency;
+
+  if (cacheEnabled) {
+    const cacheLineIdx = (address >> 2) % cache.lines;
+    if (Math.random() < 0.7) {
+      cache.hits++;
+      latency = 1;
+    } else {
+      cache.misses++;
+      latency = state.config.memoryLatency + 3;
+    }
+    state.timingEngine.latencyLog.push({ instr: isWrite ? 'SW' : 'LW', cycles: latency, phase: state.currentPhase, endTime: Date.now(), cacheLineIdx });
+  }
+
+  const injected = state.faultInjection.enabled ? state.faultInjection.memoryDelayMs : 0;
+  const total = latency + injected;
+  state.timingEngine.latencyLog.push({ instr: isWrite ? 'SW' : 'LW', cycles: total, phase: state.currentPhase, endTime: Date.now(), injected });
+  return total;
+}
+
+function saveScenario(name) {
+  const safeName = String(name || '').trim();
+  if (!safeName) {
+    setDiagnostics('warn', 'Scenario name required', 'Enter a label before saving');
+    return null;
+  }
+  const scenario = {
+    name: safeName,
+    timestamp: new Date().toISOString(),
+    state: {
+      pc: state.pc,
+      registers: { ...state.registers },
+      memory: [...state.memory],
+      flags: { ...state.flags },
+      config: { ...state.config },
+      clockHz: state.clockHz,
+      selectedInstr: state.selectedInstr,
+      currentPhase: state.currentPhase,
+      programEngine: {
+        sourceCode: state.programEngine.sourceCode,
+        assembledProgram: state.programEngine.assembledProgram,
+        labels: { ...state.programEngine.labels },
+      },
+      faultInjection: JSON.parse(JSON.stringify(state.faultInjection)),
+      visualization: { ...state.visualization },
+      comparisonMode: JSON.parse(JSON.stringify(state.comparisonMode)),
+    },
+  };
+  state.scenarios.saved.push(scenario);
+  addTrace(`Scenario saved: "${safeName}"`);
+  setDiagnostics('info', `Saved scenario: ${safeName}`, 'Click to restore');
+  return scenario;
+}
+
+function loadScenario(scenarioIndex) {
+  const scenario = state.scenarios.saved[scenarioIndex];
+  if (!scenario) return false;
+
+  state.running = false;
+  clearTimeout(phaseTimer);
+
+  state.pc = scenario.state.pc;
+  state.registers = { ...scenario.state.registers };
+  state.memory = [...scenario.state.memory];
+  state.flags = { ...scenario.state.flags };
+  state.config = { ...scenario.state.config };
+  state.clockHz = scenario.state.clockHz || state.clockHz;
+  state.selectedInstr = scenario.state.selectedInstr ?? state.selectedInstr;
+  state.currentPhase = scenario.state.currentPhase ?? -1;
+  phaseIdx = scenario.state.currentPhase ?? -1;
+  state.programEngine.sourceCode = scenario.state.programEngine?.sourceCode || '';
+  state.programEngine.assembledProgram = scenario.state.programEngine?.assembledProgram || [];
+  state.programEngine.labels = { ...(scenario.state.programEngine?.labels || {}) };
+  state.faultInjection = JSON.parse(JSON.stringify(scenario.state.faultInjection || state.faultInjection));
+  state.visualization = { ...state.visualization, ...(scenario.state.visualization || {}) };
+  state.comparisonMode = JSON.parse(JSON.stringify(scenario.state.comparisonMode || state.comparisonMode));
+  state.scenarios.currentScenario = scenarioIndex;
+  
+  document.getElementById('asmSource').value = state.programEngine.sourceCode;
+  document.getElementById('cfgDataWidth').value = String(state.config.dataWidth);
+  document.getElementById('cfgRegCount').value = String(state.config.registerCount);
+  document.getElementById('cfgMemSize').value = String(state.config.memorySize);
+  document.getElementById('cfgMemLatency').value = String(state.config.memoryLatency);
+
+  refreshVisualizationSettings();
+  buildMemGrid();
+  buildRegGrid();
+  updateAssemblerPanel();
+  updateFaultInjectionPanel();
+  updateScenariosPanel();
+  updateLabsPanel();
+  updateVisualizationPanel();
+  updateValidationPanel();
+  applyVisualizationQuality(state.visualization.qualityPreset, false, false);
+  updateDisplay();
+  document.getElementById('runBtnText').textContent = 'Start Simulation';
+  document.getElementById('simStatus').textContent = '● SIMULATION READY';
+  refreshVisualizationOverlay();
+  addTrace(`Scenario restored: "${scenario.name}"`);
+  setDiagnostics('info', `Restored: ${scenario.name}`, 'Simulation ready');
+  return true;
+}
+
+function deleteScenario(scenarioIndex) {
+  if (scenarioIndex >= 0 && scenarioIndex < state.scenarios.saved.length) {
+    const name = state.scenarios.saved[scenarioIndex].name;
+    state.scenarios.saved.splice(scenarioIndex, 1);
+    addTrace(`Scenario deleted: "${name}"`);
+  }
+}
+
+function checkLabProgress(labId) {
+  const lab = state.labs.labs.find(l => l.id === labId);
+  if (!lab) return { completed: false, checks: [] };
+
+  const results = [];
+  lab.expectedChecks.forEach(check => {
+    const passed = check.condition(state);
+    results.push({
+      message: check.message || 'Custom check',
+      passed,
+    });
+  });
+
+  const allPassed = results.every(r => r.passed);
+  if (allPassed && !lab.completed) {
+    lab.completed = true;
+    if (!state.labs.completedLabs.includes(labId)) {
+      state.labs.completedLabs.push(labId);
+    }
+    setDiagnostics('info', `Lab Complete: ${lab.title}`, '✓ All checks passed!');
+    addTrace(`Lab completed: ${lab.title}`);
+  }
+
+  return { completed: lab.completed, checks: results };
+}
+
+function buildFaultInjectionPanel() {
+  const panel = document.getElementById('faultInjectionPanel');
+  if (!panel) return;
+
+  const { stuckAtFault, memoryDelayMs, clockJitter, enabled } = state.faultInjection;
+
+  let html = `
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">
+      <div style="margin-bottom:8px;padding:6px;background:${enabled ? 'rgba(239,68,68,0.15)' : 'rgba(0,0,0,0.2)'};border-radius:4px;border-left:3px solid ${enabled ? '#ef4444' : '#64748b'}">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
+          <input type="checkbox" ${enabled ? 'checked' : ''} onchange="state.faultInjection.enabled = this.checked; updateFaultInjectionPanel()">
+          <span style="color:${enabled ? '#ef4444' : 'var(--text-dim)'}"><strong>${enabled ? '⚠ FAULTS ACTIVE' : 'No faults'}</strong></span>
+        </label>
+      </div>
+
+      <div style="margin-bottom:8px;border:1px solid var(--glass-border);padding:8px;border-radius:4px">
+        <div style="margin-bottom:6px;color:var(--accent4)"><strong>Stuck-at Fault</strong></div>
+        <div style="display:flex;gap:4px;margin-bottom:4px">
+          <select id="faultReg" style="flex:1;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);color:var(--text);border-radius:4px;padding:4px;font-family:'Share Tech Mono',monospace;font-size:9px">
+            <option value="">Select register...</option>` +
+            Object.keys(state.registers).map(r => `<option value="${r}">${r}</option>`).join('') + `
+          </select>
+          <input type="number" id="faultBit" min="0" max="15" placeholder="Bit" style="width:50px;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);color:var(--text);border-radius:4px;padding:4px;font-family:'Share Tech Mono',monospace;font-size:9px">
+          <select id="faultVal" style="width:40px;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);color:var(--text);border-radius:4px;padding:4px;font-family:'Share Tech Mono',monospace;font-size:9px">
+            <option value="0">0</option>
+            <option value="1">1</option>
+          </select>
+          <button onclick="const r=document.getElementById('faultReg').value; const b=parseInt(document.getElementById('faultBit').value); const v=parseInt(document.getElementById('faultVal').value); if(r) injectStuckAtFault(r,b,v); updateFaultInjectionPanel()" class="btn btn-primary" style="padding:4px 8px;font-size:9px">Inject</button>
+        </div>
+        <div style="font-size:9px;color:#ef4444">${stuckAtFault.register ? `Active: ${stuckAtFault.register}[${stuckAtFault.bit}]=${stuckAtFault.value}` : 'No fault'}</div>
+      </div>
+
+      <div style="margin-bottom:8px">
+        <div style="margin-bottom:4px;color:var(--accent5)"><strong>Memory Delay</strong></div>
+        <div style="display:flex;gap:4px">
+          <input type="number" id="memDelay" min="0" max="100" placeholder="ms" style="flex:1;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);color:var(--text);border-radius:4px;padding:4px;font-family:'Share Tech Mono',monospace;font-size:9px">
+          <button onclick="injectMemoryDelay(parseInt(document.getElementById('memDelay').value || 0)); updateFaultInjectionPanel()" class="btn btn-primary" style="padding:4px 8px;font-size:9px">Set</button>
+        </div>
+        <div style="font-size:9px;color:var(--text-dim);margin-top:2px">Current: ${memoryDelayMs}ms</div>
+      </div>
+
+      <div>
+        <button onclick="disableFaultInjection(); updateFaultInjectionPanel()" class="btn btn-ghost" style="width:100%;font-size:9px">Clear All Faults</button>
+      </div>
+    </div>`;
+
+  panel.innerHTML = html;
+}
+
+function updateFaultInjectionPanel() {
+  buildFaultInjectionPanel();
+}
+
+function buildScenariosPanel() {
+  const panel = document.getElementById('scenariosPanel');
+  if (!panel) return;
+
+  const { saved, currentScenario } = state.scenarios;
+
+  let html = `
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">
+      <div style="margin-bottom:8px;display:flex;gap:4px">
+        <input type="text" id="scenarioName" placeholder="Scenario name" style="flex:1;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);color:var(--text);border-radius:4px;padding:6px;font-family:'Share Tech Mono',monospace;font-size:10px">
+        <button onclick="saveScenario(document.getElementById('scenarioName').value); document.getElementById('scenarioName').value=''; updateScenariosPanel()" class="btn btn-primary" style="padding:4px 8px;font-size:9px">Save</button>
+      </div>
+
+      <div style="border-top:1px solid var(--glass-border);padding-top:8px">
+        <div style="color:var(--accent3);margin-bottom:6px"><strong>Saved (${saved.length})</strong></div>
+        <div style="max-height:120px;overflow-y:auto">`;
+
+  if (saved.length === 0) {
+    html += '<div style="color:var(--text-dim);font-size:9px">No scenarios saved</div>';
+  } else {
+    saved.forEach((s, i) => {
+      const isCurrent = i === currentScenario;
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px;background:${isCurrent ? 'rgba(0,212,255,0.1)' : 'rgba(0,0,0,0.2)'};margin-bottom:2px;border-radius:4px;border-left:2px solid ${isCurrent ? '#00d4ff' : 'transparent'}">
+        <span onclick="loadScenario(${i})" style="cursor:pointer;flex:1;font-size:9px">${s.name}</span>
+        <button onclick="deleteScenario(${i}); updateScenariosPanel()" class="btn btn-ghost" style="font-size:8px;padding:2px 4px">✕</button>
+      </div>`;
+    });
+  }
+
+  html += '</div></div>';
+  panel.innerHTML = html;
+}
+
+function updateScenariosPanel() {
+  buildScenariosPanel();
+}
+
+function buildLabsPanel() {
+  const panel = document.getElementById('labsPanel');
+  if (!panel) return;
+
+  const { labs, completedLabs, activeLabId } = state.labs;
+  const activeLab = labs.find(lab => lab.id === activeLabId) || null;
+
+  let html = `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">`;
+
+  if (activeLab) {
+    const activeChecks = checkLabProgress(activeLab.id).checks;
+    html += `<div style="margin-bottom:8px;padding:8px;border:1px solid var(--glass-border);border-radius:6px;background:rgba(0,212,255,0.05)">
+      <div style="color:var(--accent3);margin-bottom:4px"><strong>Active Lab</strong></div>
+      <div style="color:var(--text);margin-bottom:4px">${activeLab.title}</div>
+      <div style="font-size:9px;margin-bottom:6px">${activeLab.instructions}</div>
+      <div style="font-size:9px;color:var(--text-dim);margin-bottom:6px">Auto-checks: ${activeChecks.filter(c => c.passed).length} / ${activeChecks.length}</div>
+      <div style="font-size:9px;display:flex;flex-direction:column;gap:2px">${activeChecks.map(check => `<div style="color:${check.passed ? '#10b981' : '#f59e0b'}">${check.passed ? '✓' : '○'} ${check.message}</div>`).join('')}</div>
+    </div>`;
+  }
+
+  labs.forEach(lab => {
+    const isCompleted = completedLabs.includes(lab.id);
+    const isActive = lab.id === activeLabId;
+    html += `<div style="padding:8px;margin-bottom:6px;background:${isCompleted ? 'rgba(16,185,129,0.1)' : isActive ? 'rgba(0,212,255,0.08)' : 'rgba(0,0,0,0.2)'};border:1px solid ${isCompleted ? '#10b981' : isActive ? '#00d4ff' : 'var(--glass-border)'};border-radius:4px">
+      <div style="color:${isCompleted ? '#10b981' : isActive ? 'var(--accent)' : 'var(--text)'}"><strong>${isCompleted ? '✓' : '○'} ${lab.title}</strong></div>
+      <div style="font-size:9px;color:var(--text-dim);margin:4px 0">${lab.description}</div>
+      <button onclick="state.labs.activeLabId='${lab.id}'; checkLabProgress('${lab.id}'); updateLabsPanel()" class="btn btn-primary" style="padding:4px 8px;font-size:9px;width:100%">${isCompleted ? 'Review' : isActive ? 'Active Lab' : 'Start Lab'}</button>
+    </div>`;
+  });
+
+  html += '<div style="color:var(--accent3);margin-top:10px"><strong>Progress</strong></div>';
+  html += `<div style="font-size:9px;margin-top:4px">Completed: ${completedLabs.length} / ${labs.length}</div>`;
+  html += '</div>';
+  panel.innerHTML = html;
+}
+
+function updateLabsPanel() {
+  buildLabsPanel();
+}
+
+function refreshScenarioAndVisualizationPanels() {
+  updateScenariosPanel();
+  updateVisualizationPanel();
+  refreshVisualizationOverlay();
+}
+
+function buildVisualizationPanel() {
+  const panel = document.getElementById('visualizationPanel');
+  if (!panel) return;
+
+  const viz = state.visualization;
+  const qualityOptions = ['low', 'medium', 'high'];
+
+  panel.innerHTML = `
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">
+      <div class="viz-settings-grid">
+        <label class="viz-setting"><input type="checkbox" ${viz.labelsEnabled ? 'checked' : ''} onchange="state.visualization.labelsEnabled = this.checked; refreshVisualizationSettings();">Labels</label>
+        <label class="viz-setting"><input type="checkbox" ${viz.heatmapEnabled ? 'checked' : ''} onchange="state.visualization.heatmapEnabled = this.checked; refreshVisualizationSettings();">Heatmap</label>
+        <label class="viz-setting"><input type="checkbox" ${viz.compareOverlayEnabled ? 'checked' : ''} onchange="state.visualization.compareOverlayEnabled = this.checked; refreshVisualizationSettings();">Compare Overlay</label>
+        <label class="viz-setting">Quality
+          <select id="qualityPresetSelect" onchange="applyVisualizationQuality(this.value)" style="margin-left:auto;background:rgba(0,0,0,0.35);border:1px solid var(--glass-border);color:var(--text);border-radius:4px;padding:4px;font-family:'Share Tech Mono',monospace;font-size:9px">
+            ${qualityOptions.map(q => `<option value="${q}" ${viz.qualityPreset === q ? 'selected' : ''}>${q}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+      <div style="margin-top:8px;font-size:9px;color:var(--text-dim)">
+        ${viz.labelsEnabled ? '<span class="heatmap-chip">Labels on</span>' : ''}
+        ${viz.heatmapEnabled ? '<span class="heatmap-chip">Heatmap on</span>' : ''}
+        ${viz.compareOverlayEnabled ? '<span class="heatmap-chip">Overlay on</span>' : ''}
+      </div>
+    </div>`;
+}
+
+function updateVisualizationPanel() {
+  buildVisualizationPanel();
+}
+
+function refreshVisualizationSettings() {
+  Object.keys(components).forEach(key => {
+    if (key.endsWith('_label')) {
+      components[key].visible = state.visualization.labelsEnabled;
+    }
+  });
+  refreshVisualizationOverlay();
+  updateVisualizationPanel();
+}
+
+function captureVisualizationSnapshot(label) {
+  return {
+    label,
+    config: { ...state.config },
+    qualityPreset: state.visualization.qualityPreset,
+    labelsEnabled: state.visualization.labelsEnabled,
+    heatmapEnabled: state.visualization.heatmapEnabled,
+  };
+}
+
+function refreshVisualizationOverlay(phase = state.currentPhase) {
+  const overlay = document.getElementById('vizCompareOverlay');
+  if (!overlay) return;
+
+  if (!state.visualization.compareOverlayEnabled) {
+    overlay.classList.remove('visible');
+    overlay.innerHTML = '';
+    return;
+  }
+
+  const snapshot = state.visualization.compareSnapshot;
+  if (!snapshot) {
+    overlay.classList.add('visible');
+    overlay.innerHTML = '<div style="color:var(--text-dim)">No setting change captured yet. Change config or quality to compare.</div>';
+    return;
+  }
+
+  overlay.classList.add('visible');
+  overlay.innerHTML = `
+    <div style="color:var(--accent)"><strong>Before / After</strong> · ${snapshot.label}</div>
+    <div class="viz-compare-grid">
+      <div class="viz-compare-card">
+        <div style="color:var(--text)">Before</div>
+        <div>Width: ${snapshot.config.dataWidth}</div>
+        <div>Regs: ${snapshot.config.registerCount}</div>
+        <div>Mem: ${snapshot.config.memoryLatency}</div>
+        <div>Quality: ${snapshot.qualityPreset}</div>
+      </div>
+      <div class="viz-compare-card">
+        <div style="color:var(--text)">After</div>
+        <div>Width: ${state.config.dataWidth}</div>
+        <div>Regs: ${state.config.registerCount}</div>
+        <div>Mem: ${state.config.memoryLatency}</div>
+        <div>Quality: ${state.visualization.qualityPreset}</div>
+      </div>
+    </div>
+    <div style="margin-top:8px;color:var(--text-dim)">Phase: T${phase >= 0 ? phase : 'IDLE'}</div>`;
+}
+
+function applyVisualizationQuality(preset, captureSnapshot = true, syncFeatureToggles = true) {
+  const previous = captureSnapshot ? captureVisualizationSnapshot(`quality:${state.visualization.qualityPreset}`) : null;
+  state.visualization.qualityPreset = preset;
+  if (captureSnapshot && previous) {
+    state.visualization.compareSnapshot = previous;
+  }
+
+  const settings = {
+    low: { pixelRatio: 1, bloom: 0.5, labels: false, heatmap: false },
+    medium: { pixelRatio: 1.5, bloom: 0.9, labels: true, heatmap: true },
+    high: { pixelRatio: 2, bloom: 1.15, labels: true, heatmap: true },
+  }[preset] || { pixelRatio: 1.5, bloom: 0.9, labels: true, heatmap: true };
+
+  if (syncFeatureToggles) {
+    state.visualization.labelsEnabled = settings.labels;
+    state.visualization.heatmapEnabled = settings.heatmap;
+  }
+
+  if (renderer) {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatio));
+    renderer.toneMappingExposure = preset === 'low' ? 1.0 : preset === 'medium' ? 1.1 : 1.2;
+  }
+
+  if (bloomPass) {
+    bloomPass.strength = settings.bloom;
+    bloomPass.radius = preset === 'low' ? 0.35 : preset === 'medium' ? 0.5 : 0.7;
+    bloomPass.threshold = preset === 'low' ? 0.35 : 0.15;
+  }
+
+  refreshVisualizationSettings();
+  refreshVisualizationOverlay();
+}
+
+// ───────────────────────────────────
+//  PHASE 5: ADVANCED MODES (PIPELINE & COMPARISON)
+// ───────────────────────────────────
+
+function simulatePipeline(instructionSequence, depth = 5) {
+  const pipeline = [];
+  const stages = ['IF', 'ID', 'EX', 'MEM', 'WB'];
+  const hazardLog = [];
+  let cycleCount = 0;
+  let stalledCycles = 0;
+
+  // Stage each instruction through pipeline
+  for (let i = 0; i < instructionSequence.length + depth; i++) {
+    cycleCount++;
+    
+    // Advance all instructions in pipeline
+    const stagingInstructions = [];
+    for (let j = 0; j < instructionSequence.length; j++) {
+      const instr = instructionSequence[j];
+      const currentStage = Math.min(i - j, depth - 1);
+      if (currentStage >= 0 && currentStage < depth) {
+        stagingInstructions.push({
+          id: j,
+          instr: instr,
+          stage: stages[currentStage],
+          stageIndex: currentStage,
+          cycle: cycleCount,
+        });
+      }
+    }
+
+    // Detect hazards (simplified: RAW - Read After Write)
+    for (let s = 0; s < stagingInstructions.length; s++) {
+      const curr = stagingInstructions[s];
+      for (let p = s + 1; p < stagingInstructions.length; p++) {
+        const prior = stagingInstructions[p];
+        
+        // Check if prior writes to register that curr reads
+        if (curr.stageIndex <= 1 && prior.stageIndex >= 3) { // ID reads, WB writes
+          const priorWritesReg = ['ADD','SUB','AND','OR','XOR','NOT','SHL','SHR','LI','MOV','LW']
+            .includes(prior.instr.name);
+          if (priorWritesReg) {
+            if (state.pipelineEngine.forwardingEnabled) {
+              hazardLog.push({
+                type: 'RAW_FORWARDED',
+                producer: prior.instr.name,
+                consumer: curr.instr.name,
+                cycle: cycleCount,
+              });
+            } else {
+              stalledCycles += 2;
+              hazardLog.push({
+                type: 'RAW_STALL',
+                producer: prior.instr.name,
+                consumer: curr.instr.name,
+                cycle: cycleCount,
+                penalty: 2,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    pipeline.push(...stagingInstructions);
+  }
+
+  state.pipelineEngine.pipeline = pipeline;
+  state.pipelineEngine.hazards = hazardLog;
+  state.pipelineEngine.stallsInjected = stalledCycles;
+
+  return {
+    totalCycles: cycleCount + stalledCycles,
+    hazardCount: hazardLog.length,
+    stalledCycles: stalledCycles,
+    pipelineTrace: pipeline,
+  };
+}
+
+function compareHardwiredVsMicroprogrammed(programSequence) {
+  // Simulate hardwired control (existing engine)
+  let hwCycles = 0;
+  let hwRegisters = { ...state.registers };
+  const hwStartPC = state.pc;
+  
+  // Simulate current execution (represents hardwired)
+  programSequence.forEach(ins => {
+    hwCycles += ins.cycles || 5;
+  });
+
+  // Simulate microprogrammed (adds overhead)
+  const uwCycles = hwCycles + (programSequence.length * 2); // Microprogram dispatch overhead
+  const uwRegisters = { ...hwRegisters };
+
+  state.comparisonMode.hardwiredResult = {
+    pc: hwStartPC + programSequence.length,
+    registers: hwRegisters,
+    cycles: hwCycles,
+  };
+
+  state.comparisonMode.microprogrammedResult = {
+    pc: hwStartPC + programSequence.length,
+    registers: uwRegisters,
+    cycles: uwCycles,
+  };
+
+  // Calculate differences
+  const differences = [];
+  const cycleOverhead = uwCycles - hwCycles;
+  differences.push({
+    metric: 'Total Cycles',
+    hardwired: hwCycles,
+    microprogrammed: uwCycles,
+    difference: cycleOverhead,
+    percentOverhead: ((cycleOverhead / hwCycles) * 100).toFixed(1),
+  });
+
+  state.comparisonMode.differences = differences;
+  return differences;
+}
+
+function buildPipelinePanel() {
+  const panel = document.getElementById('pipelinePanel');
+  if (!panel) return;
+
+  const { pipeline, hazards } = state.pipelineEngine;
+  const { totalCycles = 0, hazardCount = 0, stalledCycles = 0 } = state.pipelineEngine;
+
+  let html = `
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">
+      <div style="margin-bottom:8px">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="pipelineToggle" ${state.pipelineEngine.mode === 'pipeline-5stage' ? 'checked' : ''} 
+            onchange="state.pipelineEngine.mode = this.checked ? 'pipeline-5stage' : 'single-cycle'; updatePipelinePanel()">
+          <span>Enable 5-Stage Pipeline</span>
+        </label>
+      </div>
+
+      <div style="margin-bottom:8px;text-align:center;background:rgba(0,0,0,0.2);padding:6px;border-radius:4px;border-left:3px solid var(--accent3)">
+        <div style="color:var(--accent3);font-weight:bold">Pipeline: ${state.pipelineEngine.mode}</div>
+        <div style="margin-top:4px;font-size:9px">
+          Stages: IF→ID→EX→MEM→WB
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="forwardingToggle" ${state.pipelineEngine.forwardingEnabled ? 'checked' : ''} 
+            onchange="state.pipelineEngine.forwardingEnabled = this.checked; updatePipelinePanel()">
+          <span>Data Forwarding</span>
+        </label>
+      </div>
+
+      <div style="border-top:1px solid var(--glass-border);padding-top:8px;margin-bottom:8px">
+        <div style="color:var(--accent4);margin-bottom:4px"><strong>Hazard Detection</strong></div>
+        <div style="margin-left:8px;font-size:9px">
+          <div>Total Hazards: <span style="color:var(--accent5)">${hazards.length}</span></div>
+          <div>Stalled Cycles: <span style="color:var(--accent5)">${state.pipelineEngine.stallsInjected}</span></div>
+          <div style="margin-top:4px;max-height:80px;overflow-y:auto">`;
+
+  hazards.slice(0, 5).forEach(h => {
+    html += `<div style="padding:2px;background:rgba(239,68,68,0.1);margin-bottom:2px;border-radius:2px">
+      ${h.type}: ${h.producer}→${h.consumer}
+    </div>`;
+  });
+
+  html += `</div></div></div>
+
+      <div style="margin-top:8px">
+        <button onclick="compareHardwiredVsMicroprogrammed(INSTRUCTIONS.slice(0,4)); buildComparisonPanel()" 
+          class="btn btn-primary" style="width:100%;font-size:9px">Compare Architectures</button>
+      </div>
+    </div>`;
+
+  panel.innerHTML = html;
+}
+
+function updatePipelinePanel() {
+  buildPipelinePanel();
+}
+
+function buildComparisonPanel() {
+  const panel = document.getElementById('comparisonPanel');
+  if (!panel) return;
+
+  const { hardwiredResult, microprogrammedResult, differences } = state.comparisonMode;
+
+  let html = `
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">
+      <div style="margin-bottom:10px;padding:8px 10px;border:1px solid var(--glass-border);border-radius:8px;background:rgba(0,212,255,0.05);color:var(--text)">
+        Side-by-side comparison of hardwired and microprogrammed control units.
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="color:var(--accent3);margin-bottom:6px;font-weight:bold">Hardwired</div>
+        <div style="margin-left:8px;font-size:9px">
+          <div>Cycles: <span style="color:var(--accent)">${hardwiredResult.cycles}</span></div>
+          <div>PC: <span style="color:var(--accent)">${hardwiredResult.pc}</span></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:10px">
+        <div style="color:var(--accent2);margin-bottom:6px;font-weight:bold">Microprogrammed</div>
+        <div style="margin-left:8px;font-size:9px">
+          <div>Cycles: <span style="color:var(--accent2)">${microprogrammedResult.cycles}</span></div>
+          <div>PC: <span style="color:var(--accent2)">${microprogrammedResult.pc}</span></div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--glass-border);padding-top:8px">
+        <div style="color:var(--accent4);margin-bottom:6px;font-weight:bold">Performance Gap</div>`;
+
+  differences.forEach(diff => {
+    const overhead = diff.percentOverhead;
+    const color = overhead > 50 ? '#ef4444' : overhead > 20 ? '#f59e0b' : '#10b981';
+    html += `<div style="margin-left:8px;font-size:9px;margin-bottom:4px">
+      <div style="color:${color}"><strong>${diff.metric}</strong></div>
+      <div style="margin-left:8px">
+        HW: ${diff.hardwired} | UP: ${diff.microprogrammed} | Overhead: <strong>${overhead}%</strong>
+      </div>
+    </div>`;
+  });
+
+  html += `</div></div>`;
+  panel.innerHTML = html;
+}
+
+function updateComparisonPanel() {
+  buildComparisonPanel();
+}
+
+// ───────────────────────────────────
+//  PHASE 4: TIMING & DATAPATH
+// ───────────────────────────────────
+
+function addBreakpoint(address, type = 'instr', target = null) {
+  if (!state.timingEngine.breakpoints.find(bp => bp.address === address && bp.type === type)) {
+    state.timingEngine.breakpoints.push({ address, type, target });
+    addTrace(`Breakpoint added at ${address}`);
+    return true;
+  }
+  return false;
+}
+
+function removeBreakpoint(address, type = 'instr') {
+  const idx = state.timingEngine.breakpoints.findIndex(bp => bp.address === address && bp.type === type);
+  if (idx !== -1) {
+    state.timingEngine.breakpoints.splice(idx, 1);
+    addTrace(`Breakpoint removed from ${address}`);
+    return true;
+  }
+  return false;
+}
+
+function checkBreakpoints(address, value = null) {
+  for (const bp of state.timingEngine.breakpoints) {
+    if (bp.type === 'instr' && bp.address === address) {
+      setDiagnostics('warn', `Breakpoint hit at address ${address}`, 'Execution paused');
+      pauseSim();
+      return true;
+    }
+    if (bp.type === 'reg' && bp.target && state.registers[bp.target] === value) {
+      setDiagnostics('warn', `Register ${bp.target} = ${formatHex(value)}`, 'Watchpoint triggered');
+      pauseSim();
+      return true;
+    }
+  }
+  return false;
+}
+
+function recordCPI(instr, cycles) {
+  const stats = state.timingEngine.cpiStats;
+  stats.totalCycles += cycles;
+  stats.totalInstructions += 1;
+  stats.avgCpi = stats.totalCycles / stats.totalInstructions;
+
+  // Track per-instruction-type CPI
+  const batch = state.timingEngine.cpiBatches.find(b => b.name === instr.name);
+  if (batch) {
+    batch.count++;
+    batch.totalCycles += cycles;
+    batch.avgCpi = batch.totalCycles / batch.count;
+  } else {
+    state.timingEngine.cpiBatches.push({
+      name: instr.name,
+      count: 1,
+      totalCycles: cycles,
+      avgCpi: cycles,
+    });
+  }
+}
+
+function exportCPIReport() {
+  const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+  const data = {
+    timestamp,
+    globalStats: state.timingEngine.cpiStats,
+    perInstructionCPI: state.timingEngine.cpiBatches,
+    cacheStats: state.timingEngine.cache,
+    breakpoints: state.timingEngine.breakpoints,
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = `cpi_report_${timestamp}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  addTrace(`CPI report exported: ${a.download}`);
+  setDiagnostics('info', 'CPI report exported', 'See download folder');
+}
+
+function buildTimingPanel() {
+  const panel = document.getElementById('timingMetricsPanel');
+  if (!panel) return;
+
+  const stats = state.timingEngine.cpiStats;
+  const cache = state.timingEngine.cache;
+  const bps = state.timingEngine.breakpoints;
+
+  let html = `
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">
+      <div style="margin-bottom:10px">
+        <div style="color:var(--accent3);margin-bottom:4px"><strong>📊 Global CPI</strong></div>
+        <div style="margin-left:8px">
+          <div>Total Instructions: <span style="color:var(--accent)">${stats.totalInstructions}</span></div>
+          <div>Total Cycles: <span style="color:var(--accent)">${stats.totalCycles}</span></div>
+          <div>Avg CPI: <span style="color:var(--accent2)">${stats.avgCpi.toFixed(2)}</span></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:10px;border-top:1px solid var(--glass-border);padding-top:8px">
+        <div style="color:var(--accent);margin-bottom:4px"><strong>📈 Per-Instruction CPI</strong></div>
+        <div style="margin-left:8px;font-size:9px">`;
+
+  state.timingEngine.cpiBatches.forEach(batch => {
+    html += `<div style="margin:2px 0">${batch.name}: ${batch.count}x @ ${batch.avgCpi.toFixed(2)} CPI</div>`;
+  });
+
+  html += `</div></div>`;
+
+  if (state.timingEngine.cacheEnabled) {
+    const hitRate = cache.hits + cache.misses > 0 ? 
+      ((cache.hits / (cache.hits + cache.misses)) * 100).toFixed(1) : '0';
+    html += `
+      <div style="margin-bottom:10px;border-top:1px solid var(--glass-border);padding-top:8px">
+        <div style="color:var(--accent4);margin-bottom:4px"><strong>💾 Cache Stats</strong></div>
+        <div style="margin-left:8px;font-size:9px">
+          <div>Hits: <span style="color:var(--accent3)">${cache.hits}</span></div>
+          <div>Misses: <span style="color:var(--accent5)">${cache.misses}</span></div>
+          <div>Hit Rate: <span style="color:var(--accent)">${hitRate}%</span></div>
+        </div>
+      </div>`;
+  }
+
+  html += `
+      <div style="margin-top:10px">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="cacheToggle" ${state.timingEngine.cacheEnabled ? 'checked' : ''} 
+            onchange="state.timingEngine.cacheEnabled = this.checked; updateTimingPanel()">
+          <span>Enable L1 Cache</span>
+        </label>
+      </div>
+      <div style="margin-top:8px">
+        <button onclick="exportCPIReport()" class="btn btn-ghost" style="width:100%;font-size:9px">Export CPI Report</button>
+      </div>
+    </div>`;
+
+  panel.innerHTML = html;
+}
+
+function updateTimingPanel() {
+  buildTimingPanel();
+}
+
+function updateBreakpointsPanel() {
+  const panel = document.getElementById('breakpointsPanel');
+  const bps = state.timingEngine.breakpoints;
+
+  if (bps.length === 0) {
+    panel.innerHTML = '<div style="color:var(--text-dim)">No breakpoints</div>';
+    return;
+  }
+
+  let html = '<div style="display:flex;flex-direction:column;gap:4px">';
+  bps.forEach((bp, i) => {
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px;background:rgba(255,255,255,0.02);border-radius:4px">
+      <span>@${bp.address}${bp.type === 'reg' ? ` (${bp.target})` : ''}</span>
+      <button onclick="removeBreakpoint(${bp.address}, '${bp.type}'); updateBreakpointsPanel()" class="btn btn-ghost" style="font-size:8px;padding:2px 6px">✕</button>
+    </div>`;
+  });
+  html += '</div>';
+  panel.innerHTML = html;
+}
+
+// ───────────────────────────────────
+//  PHASE 3: ISA SCHEMA & ASSEMBLER
+// ───────────────────────────────────
+
+const ISA_SCHEMA = {
+  name: 'SimpleISA',
+  version: '1.0.0',
+  bitWidth: 16,
+  opcodeWidth: 4,
+  fields: [
+    { name: 'opcode', bits: 4, position: 12, enum: {
+      'ADD':0, 'SUB':1, 'AND':2, 'OR':3, 'XOR':4, 'NOT':5, 'SHL':6, 'SHR':7,
+      'LW':8, 'SW':9, 'MOV':10, 'LI':11, 'BEQ':12, 'BNE':13, 'JMP':14, 'HLT':15,
+    }},
+    { name: 'rd', bits: 3, position: 9, description: 'Destination register' },
+    { name: 'rs1', bits: 3, position: 6, description: 'Source register 1' },
+    { name: 'rs2', bits: 3, position: 3, description: 'Source register 2' },
+    { name: 'imm', bits: 16, position: 0, description: 'Immediate value (16-bit)' },
+  ],
+  instructionFormats: {
+    'RRR': { opcode:0, fields:['rd','rs1','rs2'], desc: '3-register ALU operation' },
+    'RRI': { opcode:8, fields:['rd','rs1','imm'], desc: 'Load/Store with immediate offset' },
+    'RI': { opcode:11, fields:['rd','imm'], desc: 'Load immediate' },
+    'RR': { opcode:10, fields:['rd','rs1'], desc: 'Register move' },
+    'I': { opcode:15, fields:[], desc: 'System operation' },
+  },
+};
+
+function assembleProgram(sourceCode) {
+  const lines = sourceCode.split('\n');
+  const program = [];
+  const labels = {};
+  const errors = [];
+  
+  // First pass: collect labels and create instruction list
+  let instructionCount = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line || line.startsWith(';')) continue;
+    
+    const commentIdx = line.indexOf(';');
+    const cleanLine = commentIdx !== -1 ? line.substring(0, commentIdx).trim() : line;
+    
+    // Check for label
+    if (cleanLine.endsWith(':')) {
+      labels[cleanLine.slice(0, -1)] = instructionCount;
+      continue;
+    }
+    
+    if (cleanLine) {
+      instructionCount++;
+    }
+  }
+  
+  // Second pass: assemble instructions
+  instructionCount = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line || line.startsWith(';')) continue;
+    
+    const commentIdx = line.indexOf(';');
+    const cleanLine = commentIdx !== -1 ? line.substring(0, commentIdx).trim() : line;
+    
+    if (cleanLine.endsWith(':')) continue; // Skip labels
+    
+    if (cleanLine) {
+      const parts = cleanLine.split(/\s+/);
+      const mnemonic = parts[0].toUpperCase();
+      const insObj = INSTRUCTIONS.find(i => i.name === mnemonic);
+      
+      if (!insObj) {
+        errors.push(`Line ${i+1}: Unknown instruction "${mnemonic}"`);
+        continue;
+      }
+      
+      let machineWord = parseInt(insObj.opcode, 2) << 12;
+      const operands = parts.slice(1).join(' ').split(',').map(s => s.trim());
+      
+      // Parse operands
+      let rd = 0, rs1 = 0, rs2 = 0, imm = 0;
+      
+      for (const op of operands) {
+        const regMatch = op.match(/R(\d)/);
+        if (regMatch) {
+          const regNum = parseInt(regMatch[1]);
+          if (rd === 0 && !operands[0].includes('R')) rd = regNum;
+          else if (rs1 === 0) rs1 = regNum;
+          else rs2 = regNum;
+        }
+        
+        // Check for immediate or label reference
+        if (!op.match(/R\d/) && op.match(/[0-9a-fA-F]+|[a-zA-Z_][a-zA-Z0-9_]*/)) {
+          if (op.startsWith('0x') || op.startsWith('0X')) {
+            imm = parseInt(op, 16);
+          } else if (labels.hasOwnProperty(op)) {
+            imm = labels[op];
+          } else if (/^\d+$/.test(op)) {
+            imm = parseInt(op, 10);
+          }
+        }
+      }
+      
+      // Build machine code
+      machineWord |= (rd & 0x7) << 9;
+      machineWord |= (rs1 & 0x7) << 6;
+      machineWord |= (rs2 & 0x7) << 3;
+      machineWord |= (imm & 0xFFFF);
+      
+      program.push({
+        address: instructionCount,
+        mnemonic: mnemonic,
+        operands: operands,
+        machineCode: machineWord & 0xFFFF,
+        line: i + 1,
+        sourceLine: cleanLine,
+      });
+      
+      instructionCount++;
+    }
+  }
+  
+  state.programEngine.sourceCode = sourceCode;
+  state.programEngine.assembledProgram = program;
+  state.programEngine.labels = labels;
+  state.programEngine.errors = errors;
+  
+  return { program, labels, errors };
+}
+
+function disassembleInstruction(machineCode) {
+  const opcode = (machineCode >> 12) & 0xF;
+  const rd = (machineCode >> 9) & 0x7;
+  const rs1 = (machineCode >> 6) & 0x7;
+  const rs2 = (machineCode >> 3) & 0x7;
+  const imm = machineCode & 0xFFFF;
+  
+  const insObj = INSTRUCTIONS.find(i => parseInt(i.opcode, 2) === opcode);
+  if (!insObj) return `UNKNOWN(0x${machineCode.toString(16)})`;
+  
+  let operands = [];
+  const desc = insObj.desc.toLowerCase();
+  
+  if (desc.includes('rd')) operands.push(`R${rd}`);
+  if (desc.includes('rs1') || desc.includes('rs1 +')) operands.push(`R${rs1}`);
+  if (desc.includes('rs2')) operands.push(`R${rs2}`);
+  if (desc.includes('imm') || desc.includes('offset') || desc.includes('immediate')) {
+    operands.push(imm < 256 ? imm.toString() : `0x${imm.toString(16)}`);
+  }
+  
+  return `${insObj.name} ${operands.join(', ')}`;
+}
+
+function exportProgramJSON() {
+  const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-');
+  const data = {
+    timestamp: timestamp,
+    isaVersion: ISA_SCHEMA.version,
+    config: state.config,
+    program: state.programEngine.assembledProgram,
+    sourceCode: state.programEngine.sourceCode,
+    labels: state.programEngine.labels,
+  };
+  
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `program_${timestamp}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  addTrace(`Program exported: ${a.download}`);
+  setDiagnostics('info', `Exported program_${timestamp}.json`, 'Download started');
+}
+
+function importProgramJSON(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      state.programEngine.sourceCode = data.sourceCode || '';
+      state.programEngine.assembledProgram = data.program || [];
+      state.programEngine.labels = data.labels || {};
+      
+      document.getElementById('asmSource').value = state.programEngine.sourceCode;
+      updateAssemblerPanel();
+      
+      addTrace(`Program imported from ${file.name}`);
+      setDiagnostics('info', `Imported ${data.program.length} instructions`, 'Ready to load');
+    } catch (err) {
+      setDiagnostics('err', 'Import failed', err.message);
+      addTrace(`Import error: ${err.message}`);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function loadProgramToMemory() {
+  const program = state.programEngine.assembledProgram;
+  for (let i = 0; i < program.length && i < state.memory.length; i++) {
+    state.memory[i] = program[i].machineCode & 0xFF;
+    state.memory[i + 1] = (program[i].machineCode >> 8) & 0xFF;
+  }
+  state.pc = 0;
+  updateDisplay();
+  addTrace(`Loaded ${program.length} instructions to memory`);
+  setDiagnostics('info', `Program loaded (${program.length} inst)`, 'Ready to execute');
+}
+
+function buildControlContext(phase, ins) {
+  const name = ins?.name || 'NOP';
+  const aluOps = ['ADD','SUB','AND','OR','XOR','NOT','SHL','SHR'];
+  const twoOperand = ['ADD','SUB','AND','OR','XOR'];
+  const writebackOps = ['ADD','SUB','AND','OR','XOR','NOT','SHL','SHR','MOV','LI','LW'];
+
+  return {
+    phase,
+    opcode: ins?.opcode || '0000',
+    instr: name,
+    isAluOp: aluOps.includes(name),
+    isExecOp: aluOps.includes(name) || ['LW','SW','MOV','LI'].includes(name),
+    isTwoOperand: twoOperand.includes(name),
+    isMemOp: ['LW','SW'].includes(name),
+    isLoad: name === 'LW',
+    isStore: name === 'SW',
+    hasWriteback: writebackOps.includes(name),
+    flags: { ...state.flags },
+  };
+}
+
+function deriveControlSignals(phase, ins) {
+  const ctx = buildControlContext(phase, ins);
+  const derived = {};
+  CONTROL_SIGNALS.forEach(sig => {
+    const eq = CONTROL_EQUATIONS[sig.name];
+    derived[sig.name] = eq ? !!eq.eval(ctx) : sig.phase.includes(phase);
+  });
+  state.controlEngine.lastDerived = derived;
+  return { ctx, derived };
+}
+
+function updateEquationViewer() {
+  const select = document.getElementById('eqSignalSelect');
+  const exprEl = document.getElementById('eqExpression');
+  const valEl = document.getElementById('eqValue');
+  if (!select || !exprEl || !valEl) return;
+
+  const sigName = select.value || state.controlEngine.selectedSignal;
+  state.controlEngine.selectedSignal = sigName;
+  const eq = CONTROL_EQUATIONS[sigName];
+  const cur = state.controlEngine.lastDerived[sigName] ? 1 : 0;
+  exprEl.textContent = eq ? `${sigName} = ${eq.expr}` : `${sigName} = legacy phase mapping`;
+  valEl.textContent = `Current value: ${cur}`;
+}
+
+function getMaxValue() {
+  return 2 ** state.config.dataWidth;
+}
+
+function normalizeWidth(value) {
+  const mod = getMaxValue();
+  const v = Number.isFinite(value) ? Math.trunc(value) : 0;
+  return ((v % mod) + mod) % mod;
+}
+
+function formatHex(value, padBits = state.config.dataWidth) {
+  const digits = Math.ceil(padBits / 4);
+  return `0x${normalizeWidth(value).toString(16).padStart(digits, '0').toUpperCase()}`;
+}
+
+function bitMask() {
+  return (2 ** state.config.dataWidth) - 1;
+}
+
+function signBitMask() {
+  return 2 ** (state.config.dataWidth - 1);
+}
+
+function asSigned(value) {
+  const u = normalizeWidth(value);
+  const sign = signBitMask();
+  return (u & sign) ? u - getMaxValue() : u;
+}
+
+function computeALU(insName, a, b) {
+  const mask = bitMask();
+  const sign = signBitMask();
+  let raw = a;
+  let result = normalizeWidth(a);
+  let carry = 0;
+  let overflow = 0;
+
+  switch (insName) {
+    case 'ADD': {
+      raw = a + b;
+      result = normalizeWidth(raw);
+      carry = raw > mask ? 1 : 0;
+      const sa = (a & sign) !== 0;
+      const sb = (b & sign) !== 0;
+      const sr = (result & sign) !== 0;
+      overflow = (sa === sb && sa !== sr) ? 1 : 0;
+      break;
+    }
+    case 'SUB': {
+      raw = a - b;
+      result = normalizeWidth(raw);
+      carry = a >= b ? 1 : 0;
+      const sa = (a & sign) !== 0;
+      const sb = (b & sign) !== 0;
+      const sr = (result & sign) !== 0;
+      overflow = (sa !== sb && sa !== sr) ? 1 : 0;
+      break;
+    }
+    case 'AND': result = normalizeWidth(a & b); break;
+    case 'OR': result = normalizeWidth(a | b); break;
+    case 'XOR': result = normalizeWidth(a ^ b); break;
+    case 'NOT': result = normalizeWidth(~a); break;
+    case 'SHL': {
+      carry = ((a & sign) !== 0) ? 1 : 0;
+      result = normalizeWidth(a << 1);
+      break;
+    }
+    case 'SHR': {
+      carry = (a & 0x1) ? 1 : 0;
+      result = normalizeWidth(Math.floor(a / 2));
+      break;
+    }
+    default: break;
+  }
+
+  const zero = result === 0 ? 1 : 0;
+  const negative = (result & sign) !== 0 ? 1 : 0;
+  return { result, carry, overflow, zero, negative };
+}
+
+function pushValidation(level, message) {
+  const v = state.validation;
+  v.checks += 1;
+  if (level === 'err') v.errors += 1;
+  v.history.unshift({ level, message, ts: Date.now() });
+  if (v.history.length > 14) v.history.pop();
+
+  if (level === 'err') setDiagnostics('err', message, 'Inspect validation monitor and signal map');
+  else if (level === 'warn') setDiagnostics('warn', message, 'Review phase timing and control signal expectations');
+}
+
+function setDiagnostics(level, message, hint = '') {
+  state.diagnostics.level = level;
+  state.diagnostics.message = message;
+  state.diagnostics.hint = hint;
+
+  const banner = document.getElementById('diagnosticBanner');
+  if (banner) {
+    banner.className = `diag-banner ${level}`;
+    banner.textContent = `Diagnostics: ${message}${hint ? ` | Hint: ${hint}` : ''}`;
+  }
+}
+
+function addTrace(message) {
+  state.diagnostics.traces.unshift(`${new Date().toTimeString().slice(0,8)} | ${message}`);
+  if (state.diagnostics.traces.length > 20) state.diagnostics.traces.pop();
+
+  const traceEl = document.getElementById('diagTrace');
+  if (traceEl) {
+    traceEl.innerHTML = state.diagnostics.traces.map(t => `<div class="trace-item">${t}</div>`).join('');
+  }
+}
+
+const SIGNAL_DRIVER_RULES = {
+  PCout: { bus: 'ADDR_BUS', driver: 'PC' },
+  MEMread: { bus: 'DATA_BUS', driver: 'MEM' },
+  Rs1out: { bus: 'A_BUS', driver: 'REG_RS1' },
+  Rs2out: { bus: 'B_BUS', driver: 'REG_RS2' },
+  WBen: { bus: 'WB_BUS', driver: 'WRITEBACK' },
+};
+
+const EXPECTED_BUS_DRIVERS_BY_PHASE = {
+  0: { ADDR_BUS: 'PC' },
+  1: { DATA_BUS: 'MEM' },
+  2: {},
+  3: { A_BUS: 'REG_RS1', B_BUS: 'REG_RS2' },
+  4: {},
+  5: { WB_BUS: 'WRITEBACK' },
+};
+
+function getActiveSignalNames(phase) {
+  return CONTROL_SIGNALS.filter(sig => sig.phase.includes(phase)).map(sig => sig.name);
+}
+
+function buildDriverMatrix(phase, ins, activeSignals) {
+  const matrix = {};
+  activeSignals.forEach(sig => {
+    const rule = SIGNAL_DRIVER_RULES[sig];
+    if (!rule) return;
+    if (!matrix[rule.bus]) matrix[rule.bus] = [];
+    matrix[rule.bus].push(rule.driver);
+  });
+
+  const aluOps = ['ADD','SUB','AND','OR','XOR','NOT','SHL','SHR'];
+  if (phase === 3 && aluOps.includes(ins.name)) {
+    if (!matrix.DATA_BUS) matrix.DATA_BUS = [];
+    matrix.DATA_BUS.push('ALU');
+  }
+  if (phase === 4 && ['LW','SW'].includes(ins.name)) {
+    if (!matrix.ADDR_BUS) matrix.ADDR_BUS = [];
+    matrix.ADDR_BUS.push('ALU_ADDR');
+  }
+
+  return matrix;
+}
+
+function validateBusContention(phase, ins) {
+  const activeSignals = getActiveSignalNames(phase);
+  const matrix = buildDriverMatrix(phase, ins, activeSignals);
+  let contentionDetected = false;
+
+  Object.entries(matrix).forEach(([bus, drivers]) => {
+    const unique = new Set(drivers);
+    if (unique.size > 1) {
+      contentionDetected = true;
+      pushValidation('err', `${bus} contention at T${phase} (${Array.from(unique).join(', ')})`);
+      addTrace(`T${phase}: contention on ${bus} drivers=${Array.from(unique).join(', ')}`);
+    }
+  });
+
+  if (!contentionDetected) {
+    pushValidation('ok', `No bus contention at T${phase}`);
+    addTrace(`T${phase}: bus ownership valid`);
+  }
+
+  const expected = EXPECTED_BUS_DRIVERS_BY_PHASE[phase] || {};
+  Object.entries(expected).forEach(([bus, driver]) => {
+    const actual = matrix[bus] || [];
+    const ok = actual.includes(driver);
+    pushValidation(ok ? 'ok' : 'warn', ok ? `${bus} expected driver ${driver} present` : `${bus} expected ${driver} missing at T${phase}`);
+  });
+}
+
+function updateValidationPanel() {
+  const checksEl = document.getElementById('assertChecks');
+  const errorsEl = document.getElementById('assertErrors');
+  const listEl = document.getElementById('assertList');
+  if (!checksEl || !errorsEl || !listEl) return;
+
+  checksEl.textContent = String(state.validation.checks);
+  errorsEl.textContent = String(state.validation.errors);
+  listEl.innerHTML = state.validation.history.map(item => {
+    const tag = item.level === 'ok' ? 'OK' : item.level === 'warn' ? 'WARN' : 'ERR';
+    return `<div class="assert-item ${item.level}">[${tag}] ${item.message}</div>`;
+  }).join('');
+}
+
+function validateCycleState(phase, ins, regs, result) {
+  const memOk = state.memory.length === state.config.memorySize;
+  pushValidation(memOk ? 'ok' : 'err', memOk ? 'Memory size matches config' : 'Memory size mismatch detected');
+
+  const regRangeOk = Object.values(regs).every(v => normalizeWidth(v) === v);
+  pushValidation(regRangeOk ? 'ok' : 'err', regRangeOk ? 'Registers within configured width' : 'Register out-of-range value detected');
+
+  const flagsOk = ['Z', 'C', 'N', 'V'].every(k => state.flags[k] === 0 || state.flags[k] === 1);
+  pushValidation(flagsOk ? 'ok' : 'err', flagsOk ? 'Flags are binary and valid' : 'Invalid flag value encountered');
+
+  validateBusContention(phase, ins);
+
+  const expectedActive = CONTROL_SIGNALS.filter(sig => sig.phase.includes(phase)).length;
+  const observedActive = CONTROL_SIGNALS.filter(sig => document.getElementById('sval_'+sig.name)?.textContent === '1').length;
+  const signalOk = expectedActive === observedActive;
+  pushValidation(signalOk ? 'ok' : 'warn', signalOk ? `Signal map matches phase T${phase}` : `Signal mismatch at T${phase}: expected ${expectedActive}, got ${observedActive}`);
+
+  if (ins.name === 'LW' && phase === ins.cycles - 1) {
+    const memAddr = normalizeWidth(regs[Object.keys(regs)[2] || 'R0']) % state.config.memorySize;
+    const loadOk = result === normalizeWidth(state.memory[memAddr]);
+    pushValidation(loadOk ? 'ok' : 'warn', loadOk ? 'Load value matches memory contents' : 'Load value mismatch vs memory');
+  }
+
+  updateValidationPanel();
+}
+
+function runSelfTest() {
+  pauseSim();
+  state.validation = { checks: 0, errors: 0, history: [] };
+  state.diagnostics.traces = [];
+  addTrace('Self-test started');
+
+  const vectors = [
+    { op: 'ADD', a: 0x7F, b: 0x01, expect: { r: 0x80, v: 1 } },
+    { op: 'ADD', a: 0xFF, b: 0x01, expect: { r: 0x00, c: 1 } },
+    { op: 'SUB', a: 0x00, b: 0x01, expect: { r: normalizeWidth(-1), c: 0 } },
+    { op: 'SHL', a: signBitMask(), b: 0x00, expect: { c: 1 } },
+    { op: 'SHR', a: 0x01, b: 0x00, expect: { r: 0x00, c: 1 } },
+  ];
+
+  vectors.forEach((t, idx) => {
+    const out = computeALU(t.op, normalizeWidth(t.a), normalizeWidth(t.b));
+    let pass = true;
+    if (typeof t.expect.r !== 'undefined') pass = pass && out.result === normalizeWidth(t.expect.r);
+    if (typeof t.expect.c !== 'undefined') pass = pass && out.carry === t.expect.c;
+    if (typeof t.expect.v !== 'undefined') pass = pass && out.overflow === t.expect.v;
+    pushValidation(pass ? 'ok' : 'err', `Self-test #${idx + 1} ${t.op} ${pass ? 'passed' : 'failed'}`);
+    addTrace(`Self-test #${idx + 1}: op=${t.op} result=${formatHex(out.result)} C=${out.carry} V=${out.overflow}`);
+  });
+
+  const allPass = state.validation.errors === 0;
+  setDiagnostics(allPass ? 'ok' : 'err', allPass ? 'Self-test passed' : 'Self-test found failures', allPass ? 'Configuration is consistent' : 'Check validation log and ALU flags');
+  updateValidationPanel();
+  log(allPass ? 'OK' : 'ERR', allPass ? 'Deterministic self-test passed' : 'Deterministic self-test failed');
+}
+
+function referenceComputeALU(op, a, b) {
+  const max = getMaxValue();
+  const mask = max - 1;
+  const sign = signBitMask();
+  let result = a & mask;
+  let carry = 0;
+  let overflow = 0;
+  let raw;
+
+  switch (op) {
+    case 'ADD':
+      raw = a + b;
+      result = raw & mask;
+      carry = raw >= max ? 1 : 0;
+      overflow = ((((a ^ result) & (b ^ result)) & sign) !== 0) ? 1 : 0;
+      break;
+    case 'SUB':
+      raw = a - b;
+      result = raw & mask;
+      carry = a >= b ? 1 : 0;
+      overflow = ((((a ^ b) & (a ^ result)) & sign) !== 0) ? 1 : 0;
+      break;
+    case 'AND': result = (a & b) & mask; break;
+    case 'OR': result = (a | b) & mask; break;
+    case 'XOR': result = (a ^ b) & mask; break;
+    case 'NOT': result = (~a) & mask; break;
+    case 'SHL': carry = (a & sign) ? 1 : 0; result = (a << 1) & mask; break;
+    case 'SHR': carry = (a & 1) ? 1 : 0; result = (a >>> 1) & mask; break;
+    default: break;
+  }
+
+  return {
+    result: normalizeWidth(result),
+    carry,
+    overflow,
+    zero: normalizeWidth(result) === 0 ? 1 : 0,
+    negative: (normalizeWidth(result) & sign) ? 1 : 0,
+  };
+}
+
+function runGoldenReferenceSuite() {
+  pauseSim();
+  state.validation = { checks: 0, errors: 0, history: [] };
+  state.diagnostics.traces = [];
+  addTrace('Golden reference suite started');
+
+  const tests = [
+    { op: 'ADD', a: 0x12, b: 0x34 },
+    { op: 'ADD', a: bitMask(), b: 0x01 },
+    { op: 'SUB', a: 0x01, b: 0x02 },
+    { op: 'AND', a: 0xA5, b: 0x0F },
+    { op: 'OR',  a: 0xA5, b: 0x0F },
+    { op: 'XOR', a: 0xF0, b: 0x0F },
+    { op: 'NOT', a: 0x0F, b: 0x00 },
+    { op: 'SHL', a: signBitMask(), b: 0x00 },
+    { op: 'SHR', a: 0x01, b: 0x00 },
+  ];
+
+  tests.forEach((t, i) => {
+    const model = computeALU(t.op, normalizeWidth(t.a), normalizeWidth(t.b));
+    const ref = referenceComputeALU(t.op, normalizeWidth(t.a), normalizeWidth(t.b));
+    const pass = model.result === ref.result && model.carry === ref.carry && model.overflow === ref.overflow && model.zero === ref.zero && model.negative === ref.negative;
+    pushValidation(pass ? 'ok' : 'err', `Golden #${i + 1} ${t.op} ${pass ? 'passed' : 'failed'}`);
+    addTrace(`Golden #${i + 1}: model=${formatHex(model.result)} ref=${formatHex(ref.result)} C${model.carry}/${ref.carry} V${model.overflow}/${ref.overflow}`);
+  });
+
+  const passAll = state.validation.errors === 0;
+  setDiagnostics(passAll ? 'ok' : 'err', passAll ? 'Golden suite passed' : 'Golden suite failures detected', passAll ? 'Model matches reference' : 'Review traces for mismatched vectors');
+  updateValidationPanel();
+  log(passAll ? 'OK' : 'ERR', passAll ? 'Golden reference suite passed' : 'Golden reference suite failed');
+}
+
+function exportValidationReport() {
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    config: { ...state.config },
+    cpu: {
+      instruction: INSTRUCTIONS[state.selectedInstr]?.name || 'N/A',
+      phase: state.currentPhase,
+      cycleCount: state.cycleCount,
+      pc: state.pc,
+      alu: { ...state.alu },
+      flags: { ...state.flags },
+    },
+    validation: {
+      checks: state.validation.checks,
+      errors: state.validation.errors,
+      history: [...state.validation.history],
+    },
+    diagnostics: {
+      level: state.diagnostics.level,
+      message: state.diagnostics.message,
+      hint: state.diagnostics.hint,
+      traces: [...state.diagnostics.traces],
+    },
+  };
+
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `hcu-validation-report-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  setDiagnostics('ok', 'Validation report exported', 'JSON report downloaded successfully');
+  addTrace('Validation report exported to JSON');
+  log('OK', 'Validation report exported');
+}
+
+function createInitialRegisters(count) {
+  const template = [0x0000, 0x0042, 0x00FF, 0x0010, 0x1234, 0x0001, 0x0002, 0x0004, 0x0008, 0x0011, 0x0022, 0x0033, 0x0044, 0x0055, 0x0066, 0x0077];
+  const regs = {};
+  for (let i = 0; i < count; i++) {
+    regs[`R${i}`] = normalizeWidth(template[i] ?? i);
+  }
+  return regs;
+}
+
+function createInitialMemory(size) {
+  return new Array(size).fill(0).map((_, i) => {
+    if (i < 16) return normalizeWidth(Math.floor(Math.random() * 0xFF));
+    return 0;
+  });
+}
+
+state.registers = createInitialRegisters(state.config.registerCount);
+state.memory = createInitialMemory(state.config.memorySize);
+
+// ───────────────────────────────────
+//  3D SIMULATION ENGINE (THREE.JS)
+// ───────────────────────────────────
+let scene, camera, renderer, controls, composer;
+let components = {};
+let wires = [];
+let packetParticles = [];
+let glowClock = 0;
+let bloomEnabled = false;
+let bloomPass = null;
+let OrbitControlsImpl = null;
+let EffectComposerImpl = null;
+let RenderPassImpl = null;
+let UnrealBloomPassImpl = null;
+
+const wirePalette = {
+  data: 0x10b981,
+  control: 0x00d4ff,
+  alu: 0xa78bfa,
+  memory: 0xf59e0b,
+  inactive: 0x222222,
+};
+
+const componentGlow = {
+  base: 0x00d4ff,
+  focus: 0x00ff88,
+  baseOpacity: 0.38,
+  focusOpacity: 0.95,
+  baseIntensity: 0.28,
+  focusIntensity: 0.9,
+};
+
+const componentInfo = {
+  ALU: 'Arithmetic and logic execution core',
+  CU: 'Hardwired control logic and decoder',
+  REG: 'Register file for operand storage',
+  MEM: 'Memory unit for load/store operations',
+};
+
+const connectionDefs = [
+  { from: 'CU', to: 'ALU', phase: 3, kind: 'control' },
+  { from: 'CU', to: 'REG', phase: 3, kind: 'control' },
+  { from: 'REG', to: 'ALU', phase: 3, kind: 'alu' },
+  { from: 'ALU', to: 'REG', phase: 5, kind: 'data' },
+  { from: 'REG', to: 'MEM', phase: 4, kind: 'memory' },
+  { from: 'MEM', to: 'REG', phase: 5, kind: 'data' },
+  { from: 'CU', to: 'MEM', phase: 1, kind: 'control' },
+  { from: 'CU', to: 'MEM', phase: 2, kind: 'control' },
+];
+
+const phaseComponents = {
+  0: ['CU'],
+  1: ['CU', 'MEM'],
+  2: ['CU', 'MEM'],
+  3: ['CU', 'REG', 'ALU'],
+  4: ['CU', 'MEM', 'REG'],
+  5: ['CU', 'REG', 'ALU'],
+};
+
+let raycaster = null;
+let pointer = null;
+let hoverTarget = null;
+
+function setRenderBanner(kind, message) {
+  const el = document.getElementById('renderBanner');
+  if (!el) return;
+  el.className = `render-banner ${kind}`;
+  el.textContent = message;
+}
+
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const existing = Array.from(document.scripts).find(s => s.src === url);
+    if (existing) {
+      if (existing.dataset.loaded === 'true') {
+        resolve();
+        return;
+      }
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error(`Failed: ${url}`)), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = url;
+    script.async = false;
+    script.onload = () => {
+      script.dataset.loaded = 'true';
+      resolve();
+    };
+    script.onerror = () => reject(new Error(`Failed: ${url}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function loadFirstAvailable(urls) {
+  let lastErr = null;
+  for (const url of urls) {
+    try {
+      await loadScript(url);
+      return url;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('No script URL succeeded');
+}
+
+async function importFirstAvailable(urls) {
+  let lastErr = null;
+  for (const url of urls) {
+    try {
+      return await import(url);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('No module URL succeeded');
+}
+
+async function ensure3DDependencies() {
+  if (!window.THREE) {
+    setRenderBanner('info', '3D engine: loading Three.js core...');
+    await loadFirstAvailable([
+      'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js',
+      'https://unpkg.com/three@0.158.0/build/three.min.js',
+    ]);
+  }
+
+  if (!window.THREE) {
+    throw new Error('Three.js core unavailable');
+  }
+
+  if (!OrbitControlsImpl) {
+    setRenderBanner('info', '3D engine: loading camera controls...');
+    try {
+      const orbitMod = await importFirstAvailable([
+        'https://esm.sh/three@0.158.0/examples/jsm/controls/OrbitControls?bundle',
+        'https://ga.jspm.io/npm:three@0.158.0/examples/jsm/controls/OrbitControls.js',
+      ]);
+      OrbitControlsImpl = orbitMod.OrbitControls || null;
+    } catch (_) {
+      // Controls are optional due fallback.
+    }
+  }
+
+  if (!EffectComposerImpl || !RenderPassImpl || !UnrealBloomPassImpl) {
+    setRenderBanner('info', '3D engine: loading bloom pipeline...');
+    try {
+      const composerMod = await importFirstAvailable([
+        'https://esm.sh/three@0.158.0/examples/jsm/postprocessing/EffectComposer?bundle',
+        'https://ga.jspm.io/npm:three@0.158.0/examples/jsm/postprocessing/EffectComposer.js',
+      ]);
+      const renderPassMod = await importFirstAvailable([
+        'https://esm.sh/three@0.158.0/examples/jsm/postprocessing/RenderPass?bundle',
+        'https://ga.jspm.io/npm:three@0.158.0/examples/jsm/postprocessing/RenderPass.js',
+      ]);
+      const bloomPassMod = await importFirstAvailable([
+        'https://esm.sh/three@0.158.0/examples/jsm/postprocessing/UnrealBloomPass?bundle',
+        'https://ga.jspm.io/npm:three@0.158.0/examples/jsm/postprocessing/UnrealBloomPass.js',
+      ]);
+
+      EffectComposerImpl = composerMod.EffectComposer || null;
+      RenderPassImpl = renderPassMod.RenderPass || null;
+      UnrealBloomPassImpl = bloomPassMod.UnrealBloomPass || null;
+    } catch (_) {
+      // Bloom is optional due fallback.
+    }
+  }
+}
+
+function init3D() {
+  const canvas = document.getElementById('simCanvas');
+  const wrap = document.getElementById('sim-canvas-wrap');
+  const size = getSimViewportSize();
+
+  if (!window.THREE) {
+    log('ERR', 'Three.js failed to load. Check network/CDN access.');
+    return;
+  }
+
+  try {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050608);
+    scene.fog = new THREE.Fog(0x050608, 22, 45);
+    raycaster = new THREE.Raycaster();
+    pointer = new THREE.Vector2();
+
+    camera = new THREE.PerspectiveCamera(60, size.width / size.height, 0.1, 1000);
+    camera.position.set(0, 8, 18);
+
+    // Create renderer with context loss mitigation
+    try {
+      renderer = new THREE.WebGLRenderer({ 
+        canvas, 
+        antialias: true, 
+        alpha: false,
+        powerPreference: 'high-performance',
+        preserveDrawingBuffer: true,
+        failIfMajorPerformanceCaveat: false 
+      });
+    } catch (e) {
+      log('WARN', 'WebGL unavailable, using canvas fallback');
+      renderer = { 
+        render: () => null, 
+        setSize: () => {},
+        domElement: canvas,
+        dispose: () => {}
+      };
+      return {};
+    }
+
+    if (!renderer) {
+      log('ERR', 'WebGL context creation failed');
+      throw new Error('WebGL unavailable');
+    }
+
+    // Handle context loss
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      log('WARN', '3D: WebGL context lost');
+    });
+
+    canvas.addEventListener('webglcontextrestored', () => {
+      log('INFO', '3D: WebGL context restored');
+    });
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(size.width, size.height);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+
+    if (!OrbitControlsImpl && THREE.OrbitControls) {
+      OrbitControlsImpl = THREE.OrbitControls;
+    }
+
+    if (OrbitControlsImpl) {
+      controls = new OrbitControlsImpl(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.minDistance = 10;
+      controls.maxDistance = 38;
+      controls.maxPolarAngle = Math.PI * 0.48;
+    } else {
+      controls = { update() {} };
+      log('WARN', 'OrbitControls unavailable. Loading without camera controls.');
+    }
+
+    const ambient = new THREE.AmbientLight(0x404040, 1.7);
+    scene.add(ambient);
+
+    const point = new THREE.PointLight(0x00d4ff, 2.2, 120);
+    point.position.set(10, 20, 10);
+    scene.add(point);
+
+    const fill = new THREE.PointLight(0xa78bfa, 1.4, 80);
+    fill.position.set(-12, 10, 8);
+    scene.add(fill);
+
+    const back = new THREE.DirectionalLight(0x10b981, 0.6);
+    back.position.set(0, 8, -12);
+    scene.add(back);
+
+    setupBloom(size.width, size.height);
+    createEnvironment();
+    createCPU();
+    createConnections();
+
+    window.addEventListener('resize', resize3D);
+    renderer.domElement.addEventListener('mousemove', onSimPointerMove);
+    renderer.domElement.addEventListener('mouseleave', hideSimTooltip);
+
+    animate3D();
+  } catch (err) {
+    log('ERR', `3D init failed: ${err.message}`);
+  }
+}
+
+function setupBloom(width, height) {
+  bloomEnabled = false;
+  if (!EffectComposerImpl && THREE.EffectComposer && THREE.RenderPass && THREE.UnrealBloomPass) {
+    EffectComposerImpl = THREE.EffectComposer;
+    RenderPassImpl = THREE.RenderPass;
+    UnrealBloomPassImpl = THREE.UnrealBloomPass;
+  }
+
+  if (EffectComposerImpl && RenderPassImpl && UnrealBloomPassImpl) {
+    composer = new EffectComposerImpl(renderer);
+    composer.addPass(new RenderPassImpl(scene, camera));
+    bloomPass = new UnrealBloomPassImpl(new THREE.Vector2(width, height), 1.15, 0.7, 0.15);
+    composer.addPass(bloomPass);
+    bloomEnabled = true;
+    return;
+  }
+
+  composer = {
+    render: () => renderer.render(scene, camera),
+    setSize: (w, h) => renderer.setSize(w, h),
+  };
+  log('WARN', 'Bloom pipeline unavailable. Running standard render mode.');
+}
+
+async function boot3D() {
+  setRenderBanner('info', '3D engine: starting...');
+  try {
+    await ensure3DDependencies();
+    init3D();
+    if (bloomEnabled) {
+      setRenderBanner('ok', '3D mode: bloom + orbit controls active');
+    } else {
+      setRenderBanner('warn', 'Bloom unavailable, running standard mode');
+    }
+  } catch (err) {
+    setRenderBanner('err', `3D failed: ${err.message}`);
+    log('ERR', `3D bootstrap failed: ${err.message}`);
+  }
+}
+
+function createEnvironment() {
+  const grid = new THREE.GridHelper(34, 34, 0x10243a, 0x0a1422);
+  grid.position.y = -3.2;
+  scene.add(grid);
+
+  const floor = new THREE.Mesh(
+    new THREE.CircleGeometry(20, 64),
+    new THREE.MeshStandardMaterial({ color: 0x070a0f, metalness: 0.5, roughness: 0.85 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -3.3;
+  scene.add(floor);
+}
+
+function createGlassMaterial(baseColor) {
+  return new THREE.MeshStandardMaterial({
+    color: baseColor,
+    roughness: 0.32,
+    metalness: 0.58,
+    emissive: 0x001f2c,
+    emissiveIntensity: 0.45,
+    transparent: true,
+    opacity: 0.96,
+  });
+}
+
+function createEdgeMaterial() {
+  return new THREE.MeshStandardMaterial({
+    color: 0x00d4ff,
+    emissive: 0x00d4ff,
+    emissiveIntensity: 0.8,
+    roughness: 0.1,
+    metalness: 0.9,
+    transparent: true,
+    opacity: 0.85,
+  });
+}
+
+function createWireframeMaterial() {
+  return new THREE.MeshBasicMaterial({
+    color: 0x00d4ff,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.38,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  });
+}
+
+function getMainComponentMeshes() {
+  return Object.entries(components)
+    .filter(([key, obj]) => !key.endsWith('_wires') && !key.endsWith('_label') && obj && obj.material && obj.userData?.componentName)
+    .map(([, obj]) => obj);
+}
+
+function getSimViewportSize() {
+  const wrap = document.getElementById('sim-canvas-wrap');
+  const width = Math.max((wrap?.clientWidth || 0), 640);
+  const height = Math.max((wrap?.clientHeight || 0), 360);
+  return { width, height };
+}
+
+function makeComponent(name, geometry, position, color) {
+  const mesh = new THREE.Mesh(geometry, createGlassMaterial(color));
+  mesh.position.copy(position);
+  mesh.userData = { baseY: position.y, componentName: name };
+  scene.add(mesh);
+
+  // Add visible edge glow - parent the overlay so it follows the model transform
+  if (THREE && geometry) {
+    const wireframeMesh = new THREE.Mesh(geometry.clone(), createWireframeMaterial());
+    wireframeMesh.position.set(0, 0, 0);
+    wireframeMesh.scale.set(1.03, 1.03, 1.03);
+    wireframeMesh.userData = { isEdge: true, parentComponent: name };
+    wireframeMesh.renderOrder = 1; // Render after main mesh
+    mesh.add(wireframeMesh);
+    
+    // Store wireframe reference for later updates
+    components[name + '_wires'] = wireframeMesh;
+  }
+
+  components[name] = mesh;
+  addComponentLabel(name, position);
+}
+
+function createCPU() {
+  makeComponent('ALU', new THREE.BoxGeometry(4, 2, 3), new THREE.Vector3(0, 0, 0), 0x111111);
+  makeComponent('CU', new THREE.BoxGeometry(3, 2, 3), new THREE.Vector3(-6, 0, 0), 0x0f172a);
+  makeComponent('REG', new THREE.BoxGeometry(3, 2, 3), new THREE.Vector3(6, 0, 0), 0x0b1220);
+  makeComponent('MEM', new THREE.BoxGeometry(3, 4, 3), new THREE.Vector3(0, 0, -6), 0x0c1324);
+}
+
+function createConnections() {
+  wires = [];
+  connectionDefs.forEach(def => {
+    const from = components[def.from].position.clone();
+    const to = components[def.to].position.clone();
+    const mid = from.clone().lerp(to, 0.5);
+    mid.y += 1.3;
+
+    const curve = new THREE.CatmullRomCurve3([from, mid, to]);
+    const points = curve.getPoints(32);
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({ color: wirePalette.inactive });
+    const line = new THREE.Line(geometry, material);
+    scene.add(line);
+
+    wires.push({
+      line,
+      curve,
+      phase: def.phase,
+      kind: def.kind,
+      activeColor: wirePalette[def.kind],
+    });
+  });
+}
+
+function addComponentLabel(text, position) {
+  const labelCanvas = document.createElement('canvas');
+  labelCanvas.width = 256;
+  labelCanvas.height = 96;
+  const ctx = labelCanvas.getContext('2d');
+
+  ctx.fillStyle = 'rgba(5,6,8,0.78)';
+  ctx.fillRect(0, 10, 256, 76);
+  ctx.strokeStyle = 'rgba(0,212,255,0.75)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(2, 12, 252, 72);
+  ctx.font = '700 36px Orbitron';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#a5f3fc';
+  ctx.fillText(text, 128, 50);
+
+  const texture = new THREE.CanvasTexture(labelCanvas);
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false })
+  );
+  sprite.position.set(position.x, position.y + 2.25, position.z);
+  sprite.scale.set(3.2, 1.2, 1);
+  sprite.visible = state.visualization?.labelsEnabled !== false;
+  scene.add(sprite);
+  components[text + '_label'] = sprite;
+}
+
+function createPacket(wire) {
+  const intensity = wire.intensity || 1;
+  const scale = 0.14 + Math.min(0.14, intensity * 0.03);
+  const packet = new THREE.Mesh(
+    new THREE.SphereGeometry(scale, 16, 16),
+    new THREE.MeshStandardMaterial({
+      color: wire.activeColor,
+      emissive: wire.activeColor,
+      emissiveIntensity: 0.9 + intensity * 0.35,
+      metalness: 0.35,
+      roughness: 0.2,
+    })
+  );
+  const tStart = Math.random() * Math.min(0.3, 0.12 + intensity * 0.06);
+  packet.position.copy(wire.curve.getPoint(tStart));
+  scene.add(packet);
+  packetParticles.push({
+    mesh: packet,
+    wire,
+    t: tStart,
+    speed: 0.01 + Math.random() * 0.01 + Math.min(0.012, intensity * 0.003),
+  });
+}
+
+function animatePackets() {
+  packetParticles.forEach(pkt => {
+    pkt.t += pkt.speed;
+    if (pkt.t >= 1) {
+      scene.remove(pkt.mesh);
+      pkt.mesh.geometry.dispose();
+      pkt.mesh.material.dispose();
+      pkt.t = 1.01;
+      return;
+    }
+    pkt.mesh.position.copy(pkt.wire.curve.getPoint(pkt.t));
+  });
+
+  packetParticles = packetParticles.filter(pkt => pkt.t <= 1);
+}
+
+function animateSignals() {
+  const activePhase = state.currentPhase;
+  wires.forEach(wire => {
+    const active = wire.phase === activePhase;
+    if (!active) {
+      wire.line.material.color.setHex(wirePalette.inactive);
+      return;
+    }
+    const pulseHex = Math.random() > 0.35 ? wire.activeColor : 0x2a3240;
+    wire.line.material.color.setHex(pulseHex);
+  });
+}
+
+function highlightComponent(name) {
+  // Reset all components to a visible dim glow instead of blacking them out.
+  Object.keys(components).forEach(key => {
+    const comp = components[key];
+    if (!comp || !comp.material) return;
+
+    if (key.endsWith('_label')) return;
+
+    if (key.endsWith('_wires')) {
+      comp.material.color.setHex(componentGlow.base);
+      comp.material.opacity = componentGlow.baseOpacity;
+      return;
+    }
+
+    comp.material.emissive.setHex(componentGlow.base);
+    comp.material.emissiveIntensity = componentGlow.baseIntensity;
+    comp.material.opacity = 0.96;
+  });
+
+  // Highlight selected component
+  if (components[name]) {
+    components[name].material.emissive.setHex(componentGlow.focus);
+    components[name].material.emissiveIntensity = componentGlow.focusIntensity;
+  }
+
+  if (components[name + '_wires']) {
+    const wire = components[name + '_wires'];
+    wire.material.color.setHex(componentGlow.focus);
+    wire.material.opacity = componentGlow.focusOpacity;
+  }
+}
+
+function emitDataPacketsForPhase(phase, signalEval = null, ins = null) {
+  if (phase < 0) return;
+  const derivedSignals = signalEval?.derived || {};
+  const activeSignalCount = Object.values(derivedSignals).filter(Boolean).length;
+  const flagStrength = ['Z', 'C', 'N', 'V'].reduce((sum, flag) => sum + (state.flags[flag] ? 1 : 0), 0);
+  const aluWeight = Math.min(4, Math.abs(state.alu.result || 0) & 0x7);
+  const baseBurst = 1 + Math.max(0, Math.floor(activeSignalCount / 3));
+  const burst = Math.min(6, baseBurst + flagStrength + (phase === 3 ? aluWeight : 0));
+
+  wires
+    .filter(wire => wire.phase === phase)
+    .forEach(wire => {
+      const intensity = 1 + activeSignalCount * 0.15 + flagStrength * 0.2 + (phase === 3 ? aluWeight * 0.25 : 0);
+      wire.intensity = intensity;
+      createPacket(wire);
+      for (let i = 1; i < burst; i++) {
+        if (i < 3 || Math.random() > 0.45) {
+          createPacket({ ...wire, intensity: intensity * (1 - i * 0.08) });
+        }
+      }
+
+      if (ins && ins.name === 'LW' && wire.kind === 'memory') {
+        createPacket({ ...wire, intensity: intensity + 1.2, activeColor: wirePalette.memory });
+      }
+    });
+}
+
+function phaseToComponent(phase) {
+  const map = {
+    0: 'CU',
+    1: 'MEM',
+    2: 'CU',
+    3: 'ALU',
+    4: 'MEM',
+    5: 'REG',
+  };
+  return map[phase] || null;
+}
+
+function applyPhaseHighlights(phase) {
+  highlightComponent(null);
+  const activeComps = phaseComponents[phase] || [];
+  activeComps.forEach(name => {
+    if (components[name]) {
+      const heatColor = state.visualization.heatmapEnabled ? wirePalette[
+        name === 'ALU' ? 'alu' : name === 'MEM' ? 'memory' : name === 'REG' ? 'data' : 'control'
+      ] : componentGlow.base;
+      components[name].material.emissive.setHex(heatColor);
+      components[name].material.emissiveIntensity = componentGlow.baseIntensity + 0.18;
+      components[name].material.color.setHex(heatColor);
+      // Brighten wireframe edges on focus
+      if (components[name + '_wires']) {
+        const wire = components[name + '_wires'];
+        wire.material.color.setHex(componentGlow.focus);
+        wire.material.opacity = componentGlow.focusOpacity;
+      }
+    }
+  });
+
+  const primary = phaseToComponent(phase);
+  if (primary) {
+    highlightComponent(primary);
+    if (components[primary + '_wires']) {
+      const wire = components[primary + '_wires'];
+      wire.material.color.setHex(componentGlow.focus);
+      wire.material.opacity = componentGlow.focusOpacity;
+    }
+  }
+
+  refreshVisualizationOverlay(phase);
+}
+
+function resize3D() {
+  if (!renderer || !camera) return;
+  const size = getSimViewportSize();
+
+  camera.aspect = size.width / size.height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(size.width, size.height);
+  composer.setSize(size.width, size.height);
+}
+
+function onSimPointerMove(e) {
+  if (!renderer || !camera || !raycaster || !pointer) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(pointer, camera);
+  const meshes = getMainComponentMeshes();
+  const hits = raycaster.intersectObjects(meshes, false);
+  if (hits.length === 0) {
+    hoverTarget = null;
+    hideSimTooltip();
+    return;
+  }
+
+  hoverTarget = hits[0].object;
+  const name = hoverTarget.userData.componentName || hoverTarget.userData.parentComponent;
+  showSimTooltip(name, componentInfo[name] || 'CPU component', e.clientX, e.clientY);
+}
+
+function showSimTooltip(title, message, x, y) {
+  const tip = document.getElementById('tooltip');
+  if (!tip) return;
+  document.getElementById('ttTitle').textContent = title;
+  document.getElementById('ttText').textContent = message;
+  tip.classList.add('visible');
+  tip.style.left = `${x + 16}px`;
+  tip.style.top = `${y + 16}px`;
+}
+
+function hideSimTooltip() {
+  document.getElementById('tooltip')?.classList.remove('visible');
+}
+
+function animate3D() {
+  requestAnimationFrame(animate3D);
+  if (!renderer || !scene || !camera) return;
+
+  controls?.update();
+
+  const t = Date.now() * 0.001;
+  getMainComponentMeshes().forEach((obj, i) => {
+    obj.rotation.y += 0.005;
+    obj.position.y = obj.userData.baseY + Math.sin(t + i * 0.9) * 0.18;
+  });
+
+  glowClock += 0.02;
+  animateSignals();
+  animatePackets();
+
+  composer.render();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function hexToRgb(hex) {
+  let r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+// ───────────────────────────────────
+//  BUILD UI
+// ───────────────────────────────────
+
+function buildInstrList() {
+  const el = document.getElementById('instrList');
+  el.innerHTML = INSTRUCTIONS.map((ins, i) => `
+    <div class="instr-item ${i===state.selectedInstr?'selected':''}" onclick="selectInstr(${i})" id="instr_${i}">
+      <span class="instr-opcode">${ins.opcode}</span>
+      <span class="instr-name">${ins.name}</span>
+      <span style="font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace">${ins.desc}</span>
+      <span class="instr-cycles" style="color:${ins.color}">${ins.cycles}T</span>
+    </div>`).join('');
+}
+
+function buildMicroInstrList() {
+  const el = document.getElementById('microInstrList');
+  el.innerHTML = INSTRUCTIONS.map((ins,i) => `
+    <div class="instr-item" onclick="showMicroOps('${ins.name}')" style="cursor:pointer" id="mi_${ins.name}">
+      <span class="instr-opcode" style="background:rgba(${hexToRgb(ins.color)},0.15);color:${ins.color}">${ins.opcode}</span>
+      <span class="instr-name">${ins.name}</span>
+    </div>`).join('');
+}
+
+function buildRegGrid() {
+  const el = document.getElementById('regGrid');
+  el.innerHTML = Object.entries(state.registers).map(([n,v]) => `
+    <div class="reg-item" id="reg_${n}" onclick="editRegisterValue('${n}')" style="cursor:pointer" title="Click to edit register value">
+      <div class="reg-name">${n}</div>
+      <div class="reg-val">${formatHex(v)}</div>
+    </div>`).join('');
+}
+
+function buildSignalList() {
+  const el = document.getElementById('signalList');
+  el.innerHTML = CONTROL_SIGNALS.map(s => `
+    <div class="signal-row" id="sig_${s.name}" onclick="state.controlEngine.selectedSignal='${s.name}';document.getElementById('eqSignalSelect').value='${s.name}';updateEquationViewer();" style="cursor:pointer" title="Inspect signal equation">
+      <div class="signal-led" id="led_${s.name}"></div>
+      <div class="signal-name" id="sname_${s.name}">${s.name}</div>
+      <div class="signal-val" id="sval_${s.name}">0</div>
+    </div>`).join('');
+
+  const eqSelect = document.getElementById('eqSignalSelect');
+  if (eqSelect) {
+    eqSelect.innerHTML = CONTROL_SIGNALS.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+    eqSelect.value = state.controlEngine.selectedSignal;
+    updateEquationViewer();
+  }
+}
+
+function buildMemGrid() {
+  const el = document.getElementById('memGrid');
+  el.innerHTML = state.memory.slice(0, state.config.memorySize).map((v,i) => `
+    <div class="mem-cell" id="mem_${i}" onclick="editMemoryValue(${i})" title="Click to edit memory cell">${formatHex(v, Math.min(16, state.config.dataWidth)).replace('0x','')}</div>`).join('');
+}
+
+function parseInputValue(input) {
+  const raw = (input || '').trim();
+  if (!raw) return null;
+  if (raw.startsWith('0x') || raw.startsWith('0X')) return Number.parseInt(raw.slice(2), 16);
+  return Number.parseInt(raw, 10);
+}
+
+function editRegisterValue(name) {
+  if (state.running) return;
+  const current = state.registers[name] ?? 0;
+  const input = prompt(`Set ${name} value (hex like 0x1F or decimal):`, formatHex(current));
+  if (input === null) return;
+  const parsed = parseInputValue(input);
+  if (Number.isNaN(parsed) || parsed === null) {
+    log('ERR', `Invalid value for ${name}`);
+    return;
+  }
+  state.registers[name] = normalizeWidth(parsed);
+  buildRegGrid();
+  log('INFO', `${name} updated to ${formatHex(state.registers[name])}`);
+}
+
+function editMemoryValue(index) {
+  if (state.running) return;
+  const current = state.memory[index] ?? 0;
+  const input = prompt(`Set Memory[${index}] value (hex like 0x1F or decimal):`, formatHex(current));
+  if (input === null) return;
+  const parsed = parseInputValue(input);
+  if (Number.isNaN(parsed) || parsed === null) {
+    log('ERR', `Invalid memory value at ${index}`);
+    return;
+  }
+  state.memory[index] = normalizeWidth(parsed);
+  buildMemGrid();
+  log('INFO', `Memory[${index}] updated to ${formatHex(state.memory[index])}`);
+}
+
+function buildISAPanel() {
+  const panel = document.getElementById('isaPanel');
+  if (!panel) return;
+  
+  let html = `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">
+    <div style="margin-bottom:8px;color:var(--accent)"><strong>ISA: ${ISA_SCHEMA.name}</strong></div>
+    <div style="margin-bottom:4px"><strong>Format (${ISA_SCHEMA.bitWidth}-bit):</strong></div>
+    <div style="margin-left:8px;margin-bottom:6px">`;
+  
+  html += `[OPC:4 | RD:3 | RS1:3 | RS2:3 | IMM:16]`;
+  html += `</div><div style="margin-bottom:4px"><strong>Opcodes:</strong></div><div style="margin-left:8px;display:grid;grid-template-columns:1fr 1fr;gap:2px;font-size:9px">`;
+  
+  INSTRUCTIONS.forEach(ins => {
+    const dec = parseInt(ins.opcode, 2);
+    html += `<div>${ins.name}:<span style="color:var(--accent4)">${dec}</span></div>`;
+  });
+  
+  html += `</div></div>`;
+  panel.innerHTML = html;
+}
+
+function updateAssemblerPanel() {
+  const program = state.programEngine.assembledProgram;
+  const errors = state.programEngine.errors;
+  const output = document.getElementById('asmOutput');
+  
+  let html = '';
+  
+  if (errors.length > 0) {
+    html += `<div style="color:var(--accent5)">❌ ${errors.length} error(s):</div>`;
+    errors.forEach(err => html += `<div style="padding:2px 0">${err}</div>`);
+  }
+  
+  if (program.length > 0) {
+    html += `<div style="color:var(--accent3);margin-top:6px">✓ ${program.length} instruction(s) assembled:</div>`;
+    program.forEach((ins, i) => {
+      const machineHex = `0x${ins.machineCode.toString(16).padStart(4, '0').toUpperCase()}`;
+      html += `<div style="padding:2px 0;color:var(--text-dim)">[${i}] ${ins.mnemonic} → ${machineHex}</div>`;
+    });
+  }
+  
+  if (!html) {
+    html = '<div style="color:var(--text-dim)">Ready to assemble</div>';
+  }
+  
+  output.innerHTML = html;
+}
+
+function buildTruthTable() {
+  const signals = ['PCout','MARin','MEMread','MDRin','IRin','PCincr','ALUop','WBen','MAR2in'];
+  const table = document.getElementById('truthTable');
+  let html = '<tr><th>Instruction</th><th>Phase</th>';
+  signals.forEach(s => html += `<th>${s}</th>`);
+  html += '</tr>';
+
+  INSTRUCTIONS.slice(0,12).forEach(ins => {
+    const phases = ['FETCH','FETCH','DECODE','EXEC','MEM','WB'];
+    phases.forEach((ph, t) => {
+      html += `<tr id="tt_${ins.name}_${t}" ${t===0?`style="border-top:1px solid rgba(255,255,255,0.1)"`:''}>`;
+      if (t===0) html += `<td rowspan="${ins.cycles}" style="color:${ins.color};font-weight:600;border-right:1px solid var(--glass-border)">${ins.name}</td>`;
+      html += `<td style="color:var(--accent4)">T₀${t>0?'+'+t:''}</td>`;
+      const derived = deriveControlSignals(t, ins).derived;
+      signals.forEach(sig => {
+        const active = !!derived[sig];
+        html += `<td class="${active?'bit-1':'bit-0'}">${active?'1':'0'}</td>`;
+      });
+      if (t >= ins.cycles-1) return;
+      html += '</tr>';
+    });
+  });
+
+  table.innerHTML = html;
+}
+
+function validateSignalEmission(phase, ins, derivedSignals) {
+  const mismatches = [];
+  CONTROL_SIGNALS.forEach(sig => {
+    const emitted = document.getElementById('sval_'+sig.name)?.textContent === '1';
+    const expected = !!derivedSignals[sig.name];
+    if (emitted !== expected) mismatches.push(sig.name);
+  });
+
+  if (mismatches.length === 0) {
+    pushValidation('ok', `Equation-to-emission match at T${phase}`);
+    return;
+  }
+
+  pushValidation('err', `Equation mismatch at T${phase}: ${mismatches.join(', ')}`);
+  addTrace(`Equation mismatch T${phase} for ${ins.name}: ${mismatches.join(', ')}`);
+}
+
+// ───────────────────────────────────
+//  SIMULATION LOGIC
+// ───────────────────────────────────
+
+function selectInstr(i) {
+  state.selectedInstr = i;
+  document.querySelectorAll('#instrList .instr-item').forEach((el,idx) => {
+    el.classList.toggle('selected', idx===i);
+  });
+  log('INFO', `Selected: ${INSTRUCTIONS[i].name} (${INSTRUCTIONS[i].opcode})`);
+}
+
+let phaseTimer = null;
+let phaseIdx = -1;
+let currentCycles = 0;
+
+function toggleRun() {
+  if (state.running) {
+    pauseSim();
+  } else {
+    startSim();
+  }
+}
+
+function applySimulationConfig() {
+  state.visualization.compareSnapshot = captureVisualizationSnapshot('config change');
+  const dataWidth = Number(document.getElementById('cfgDataWidth')?.value || 16);
+  const registerCount = Number(document.getElementById('cfgRegCount')?.value || 8);
+  const memorySize = Number(document.getElementById('cfgMemSize')?.value || 64);
+  const memoryLatency = Number(document.getElementById('cfgMemLatency')?.value || 1);
+
+  state.config.dataWidth = dataWidth;
+  state.config.registerCount = registerCount;
+  state.config.memorySize = memorySize;
+  state.config.memoryLatency = memoryLatency;
+
+  state.registers = createInitialRegisters(state.config.registerCount);
+  state.memory = createInitialMemory(state.config.memorySize);
+  state.validation = { checks: 0, errors: 0, history: [] };
+  resetSim();
+  buildMemGrid();
+  buildRegGrid();
+  updateVisualizationPanel();
+  refreshVisualizationOverlay();
+  log('OK', `Config applied · ${dataWidth}-bit · ${registerCount} regs · mem ${memorySize} · latency ${memoryLatency}`);
+}
+
+function resetConfigDefaults() {
+  document.getElementById('cfgDataWidth').value = '16';
+  document.getElementById('cfgRegCount').value = '8';
+  document.getElementById('cfgMemSize').value = '64';
+  document.getElementById('cfgMemLatency').value = '1';
+  applySimulationConfig();
+}
+
+function getPhaseDelayMs(phase, ins) {
+  const base = 1000 / Math.max(state.clockHz, 0.1);
+  const isMemPhase = phase === 4 && (ins.name === 'LW' || ins.name === 'SW');
+  const memoryPenalty = isMemPhase ? Math.max(1, state.config.memoryLatency) + (state.faultInjection.enabled ? state.faultInjection.memoryDelayMs / base : 0) : 0;
+  const jitterCycles = state.faultInjection.enabled ? Math.max(0, state.faultInjection.clockJitter || 0) : 0;
+  const jitter = jitterCycles ? (Math.floor(Math.random() * (jitterCycles * 2 + 1)) - jitterCycles) * base : 0;
+  return Math.max(80, base * Math.max(1, memoryPenalty || 1) + jitter);
+}
+
+function startSim() {
+  clearTimeout(phaseTimer);
+  state.running = true;
+  state.startTime = state.startTime || Date.now();
+  document.getElementById('runBtnText').textContent = 'Pause Simulation';
+  document.getElementById('simStatus').textContent = '● RUNNING';
+  log('OK', `Simulation started · ${INSTRUCTIONS[state.selectedInstr].name}`);
+  runNextPhase();
+}
+
+function pauseSim() {
+  state.running = false;
+  clearTimeout(phaseTimer);
+  document.getElementById('runBtnText').textContent = 'Resume Simulation';
+  document.getElementById('simStatus').textContent = '● PAUSED';
+  log('WARN', 'Simulation paused');
+}
+
+function runNextPhase() {
+  if (!state.running) return;
+  const ins = INSTRUCTIONS[state.selectedInstr];
+  phaseIdx = (phaseIdx + 1) % ins.cycles;
+  executePhase(phaseIdx, ins);
+  const phaseDelay = getPhaseDelayMs(phaseIdx, ins);
+  if (phaseIdx === ins.cycles - 1) {
+    phaseTimer = setTimeout(() => {
+      phaseIdx = -1;
+      state.cycleCount++;
+      // Advance to next instruction in sequence
+      state.selectedInstr = (state.selectedInstr + 1) % INSTRUCTIONS.length;
+      document.querySelectorAll('#instrList .instr-item').forEach((el,i) => el.classList.toggle('selected',i===state.selectedInstr));
+      document.getElementById('instrList .executing')?.classList.remove('executing');
+      updateDisplay();
+      phaseTimer = setTimeout(runNextPhase, 1000/state.clockHz);
+    }, phaseDelay);
+  } else {
+    phaseTimer = setTimeout(runNextPhase, phaseDelay);
+  }
+}
+
+function stepOnce() {
+  const ins = INSTRUCTIONS[state.selectedInstr];
+  phaseIdx = Math.min(phaseIdx + 1, ins.cycles - 1);
+  executePhase(phaseIdx, ins);
+}
+
+function stepCycle() {
+  const ins = INSTRUCTIONS[state.selectedInstr];
+  for (let i = 0; i < ins.cycles; i++) {
+    setTimeout(() => executePhase(i, ins), i * 200);
+  }
+  setTimeout(() => {
+    state.cycleCount++;
+    phaseIdx = -1;
+    updateDisplay();
+  }, ins.cycles * 200 + 100);
+}
+
+function executePhase(phase, ins) {
+  state.currentPhase = phase;
+  document.getElementById('hudPhase').textContent = ['FETCH','FETCH','DECODE','EXECUTE','MEMORY','WRITEBACK'][phase] || 'IDLE';
+  applyPhaseHighlights(phase);
+  animateSignals();
+  const signalEval = deriveControlSignals(phase, ins);
+  emitDataPacketsForPhase(phase, signalEval, ins);
+
+  // Update phase bar
+  for (let i = 0; i < 6; i++) {
+    const el = document.getElementById('ph'+i);
+    el.className = 'phase-step' + (i < phase ? ' done' : i === phase ? ' active' : '');
+  }
+
+  // Activate signals
+  CONTROL_SIGNALS.forEach(sig => {
+    const active = !!signalEval.derived[sig.name];
+    const ledEl = document.getElementById('led_'+sig.name);
+    const nameEl = document.getElementById('sname_'+sig.name);
+    const valEl = document.getElementById('sval_'+sig.name);
+    const rowEl = document.getElementById('sig_'+sig.name);
+    if (ledEl) { ledEl.className = 'signal-led' + (active?' on':''); }
+    if (nameEl) { nameEl.className = 'signal-name' + (active?' active':''); }
+    if (valEl) valEl.textContent = active ? '1' : '0';
+    if (rowEl) rowEl.className = 'signal-row' + (active?' active':'');
+  });
+
+  // Update registers / execute semantics
+  const regs = state.registers;
+  const keys = Object.keys(regs);
+  const rd = keys[Math.min(1, keys.length - 1)] || keys[0];
+  const rs1 = keys[Math.min(2, keys.length - 1)] || keys[0];
+  const rs2 = keys[Math.min(3, keys.length - 1)] || keys[0];
+  let result = normalizeWidth(regs[rs1] ?? 0);
+  let aluInfo = { result, carry: 0, overflow: 0, zero: result === 0 ? 1 : 0, negative: asSigned(result) < 0 ? 1 : 0 };
+
+  if (phase === ins.cycles - 1) {
+    switch (ins.name) {
+      case 'ADD':
+      case 'SUB':
+      case 'AND':
+      case 'OR':
+      case 'XOR':
+      case 'NOT':
+      case 'SHL':
+      case 'SHR':
+        aluInfo = computeALU(ins.name, normalizeWidth(regs[rs1] ?? 0), normalizeWidth(regs[rs2] ?? 0));
+        result = aluInfo.result;
+        regs[rd] = result;
+        break;
+      case 'MOV': regs[rd] = normalizeWidth(regs[rs1]); result = regs[rd]; break;
+      case 'LI':  regs[rd] = normalizeWidth(0x00AB); result = regs[rd]; break;
+      case 'LW': {
+        const addr = normalizeWidth(regs[rs1]) % state.config.memorySize;
+        simulateMemoryAccess(addr, false);
+        regs[rd] = normalizeWidth(state.memory[addr]);
+        result = regs[rd];
+        break;
+      }
+      case 'SW': {
+        const addr = normalizeWidth(regs[rs1]) % state.config.memorySize;
+        simulateMemoryAccess(addr, true);
+        state.memory[addr] = normalizeWidth(regs[rs2]);
+        result = normalizeWidth(regs[rs2]);
+        break;
+      }
+      case 'JMP': state.pc = (state.pc + 4) & 0xFF; break;
+    }
+
+    if (['ADD','SUB','AND','OR','XOR','NOT','SHL','SHR'].includes(ins.name)) {
+      state.flags.Z = aluInfo.zero;
+      state.flags.C = aluInfo.carry;
+      state.flags.N = aluInfo.negative;
+      state.flags.V = aluInfo.overflow;
+    } else {
+      state.flags.Z = result === 0 ? 1 : 0;
+      state.flags.C = 0;
+      state.flags.N = asSigned(result) < 0 ? 1 : 0;
+      state.flags.V = 0;
+    }
+
+    state.alu.result = result;
+    state.alu.op = ins.name;
+    state.pc = (state.pc + 1) & 0xFF;
+    applyStuckAtFault();
+    highlightReg(rd);
+  }
+
+  // Bus updates
+  if (phase === 0) {
+    document.getElementById('addrBus').textContent = formatHex(state.pc);
+    document.getElementById('ctrlBus').textContent = 'READ';
+  } else if (phase === 3) {
+    document.getElementById('dataBus').textContent = formatHex(result);
+    document.getElementById('ctrlBus').textContent = 'ALU';
+  } else if (phase === 5) {
+    document.getElementById('ctrlBus').textContent = 'WB';
+  }
+
+  document.getElementById('curInstrLabel').textContent = ins.name;
+  document.getElementById('irVal').textContent = ins.opcode;
+
+  // Executing highlight
+  document.querySelectorAll('#instrList .instr-item').forEach((el,i) => {
+    el.classList.remove('executing');
+    if (i===state.selectedInstr) el.classList.add('executing');
+  });
+
+  updateDisplay();
+  
+  // Phase 4: Check breakpoints
+  if (phase === 0) {
+    checkBreakpoints(state.pc);
+  }
+  
+  // Phase 4: Record CPI on instruction completion
+  if (phase === ins.cycles - 1) {
+    recordCPI(ins, ins.cycles);
+    updateTimingPanel();
+  }
+  
+  validateCycleState(phase, ins, regs, result);
+  validateSignalEmission(phase, ins, signalEval.derived);
+  updateEquationViewer();
+  if (state.labs.activeLabId) checkLabProgress(state.labs.activeLabId);
+  log('INFO', `${ins.name} · T${phase} · ${['Fetch','Fetch','Decode','Execute','Memory','Writeback'][phase]}`);
+}
+
+function highlightReg(name) {
+  const el = document.getElementById('reg_'+name);
+  if (el) { el.classList.add('changed'); setTimeout(()=>el.classList.remove('changed'), 800); }
+}
+
+function resetSim() {
+  clearTimeout(phaseTimer);
+  state.running = false;
+  state.currentPhase = -1;
+  state.cycleCount = 0;
+  state.pc = 0;
+  state.ir = '—';
+  phaseIdx = -1;
+  state.registers = createInitialRegisters(state.config.registerCount);
+  state.memory = createInitialMemory(state.config.memorySize);
+  state.flags = {Z:0,C:0,N:0,V:0};
+  state.alu = { result:0, op:'—' };
+  state.validation = { checks: 0, errors: 0, history: [] };
+  state.diagnostics = {
+    level: 'info',
+    message: 'Simulation reset',
+    hint: 'Run self-test or start simulation',
+    traces: [],
+  };
+  applyPhaseHighlights(-1);
+  animateSignals();
+  packetParticles.forEach(pkt => {
+    if (!scene) return;
+    scene.remove(pkt.mesh);
+    pkt.mesh.geometry.dispose();
+    pkt.mesh.material.dispose();
+  });
+  packetParticles = [];
+  document.getElementById('runBtnText').textContent = 'Start Simulation';
+  document.getElementById('simStatus').textContent = '● SIMULATION READY';
+  for (let i=0;i<6;i++) document.getElementById('ph'+i).className='phase-step';
+  document.getElementById('hudPhase').textContent='IDLE';
+  CONTROL_SIGNALS.forEach(s => {
+    document.getElementById('led_'+s.name)?.classList.remove('on');
+    document.getElementById('sname_'+s.name)?.classList.remove('active');
+    if(document.getElementById('sval_'+s.name)) document.getElementById('sval_'+s.name).textContent='0';
+    document.getElementById('sig_'+s.name)?.classList.remove('active');
+  });
+  document.querySelectorAll('#instrList .instr-item').forEach(el=>el.classList.remove('executing'));
+  updateDisplay();
+  refreshVisualizationOverlay();
+  updateValidationPanel();
+  setDiagnostics('info', 'Simulation reset', 'Run self-test or start simulation');
+  addTrace('Simulation reset by user');
+  log('WARN', 'Simulation reset');
+}
+
+function randomProgram() {
+  const idx = Math.floor(Math.random()*INSTRUCTIONS.length);
+  selectInstr(idx);
+  startSim();
+}
+
+function updateDisplay() {
+  applyStuckAtFault();
+  document.getElementById('cycleCount').textContent = state.cycleCount;
+  document.getElementById('pcVal').textContent = formatHex(state.pc, 8);
+  buildRegGrid();
+  document.getElementById('aluResult').textContent = formatHex(state.alu.result);
+  document.getElementById('aluOp').textContent = state.alu.op;
+  document.getElementById('flagZ').textContent = state.flags.Z;
+  document.getElementById('flagC').textContent = state.flags.C;
+  document.getElementById('flagN').textContent = state.flags.N;
+  document.getElementById('flagV').textContent = state.flags.V;
+  ['Z','C','N','V'].forEach(f => {
+    const el = document.getElementById('flag'+f);
+    if (el) el.style.color = state.flags[f] ? 'var(--accent3)' : 'var(--text-dim)';
+  });
+
+  refreshVisualizationOverlay(state.currentPhase);
+  if (state.labs.activeLabId) checkLabProgress(state.labs.activeLabId);
+}
+
+function updateSpeed(val) {
+  const hz = (val/4).toFixed(2);
+  state.clockHz = parseFloat(hz);
+  document.getElementById('speedVal').textContent = hz + ' Hz';
+  document.getElementById('clkFreq').textContent = hz + ' Hz';
+  document.getElementById('clockTag').textContent = 'CLK: ' + hz + ' Hz';
+}
+
+// ─── LOG ───
+let logCount = 0;
+function log(type, msg) {
+  const console_ = document.getElementById('log-console');
+  const now = new Date();
+  const ts = now.toTimeString().slice(0,8)+'.'+String(now.getMilliseconds()).padStart(3,'0');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">${ts}</span><span class="log-tag ${type.toLowerCase()}">[${type}]</span><span class="log-msg">${msg}</span>`;
+  console_.appendChild(entry);
+  console_.scrollTop = console_.scrollHeight;
+  if (++logCount > 100) { console_.removeChild(console_.firstChild); logCount--; }
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+// ─── WAVEFORM ───
+function drawWaveform() {
+  const c = document.getElementById('waveCanvas');
+  const ctx = c.getContext('2d');
+  c.width = c.offsetWidth * devicePixelRatio || 240;
+  c.height = 60;
+  ctx.clearRect(0,0,c.width,c.height);
+
+  state.clkPhase = !state.clkPhase;
+  state.waveHistory.push(state.clkPhase ? 1 : 0);
+  if (state.waveHistory.length > 40) state.waveHistory.shift();
+
+  const h = c.height, w = c.width;
+  const seg = w / 40;
+
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 1.5;
+  ctx.shadowBlur = 6; ctx.shadowColor = '#f59e0b';
+  ctx.beginPath();
+
+  state.waveHistory.forEach((v, i) => {
+    const x = i * seg;
+    const y = v === 1 ? h*0.2 : h*0.8;
+    if (i===0) ctx.moveTo(x,y);
+    else {
+      const prev = state.waveHistory[i-1];
+      if (prev !== v) ctx.lineTo(x, prev===1?h*0.2:h*0.8);
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Clock pulse indicator
+  const pulseEl = document.getElementById('clkPulse');
+  if (pulseEl) {
+    pulseEl.style.background = state.clkPhase ? '#f59e0b' : '#1e293b';
+    pulseEl.style.boxShadow = state.clkPhase ? '0 0 10px #f59e0b' : 'none';
+  }
+}
+
+setInterval(drawWaveform, 400);
+
+// ─── TIMING DIAGRAM ───
+function drawTimingDiagram() {
+  const wrap = document.getElementById('timingWrap');
+  if (!wrap) return;
+  const c = document.getElementById('timingCanvas');
+  c.width = wrap.clientWidth || 800;
+  const signals = ['CLK','PCout','MARin','MEMread','MDRin','IRin','PCincr','ALUop','WBen','MAR2in'];
+  const phaseMap = { PCout:[0], MARin:[0], MEMread:[1], MDRin:[1], IRin:[2], PCincr:[2], ALUop:[3,4], WBen:[5], MAR2in:[4] };
+  const rowH = 36, labelW = 90, cols = 12, colW = (c.width - labelW) / cols;
+  c.height = (signals.length + 1) * rowH + 30;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+
+  // Background
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(0,0,c.width,c.height);
+
+  // Column headers
+  for (let col = 0; col < cols; col++) {
+    const phase = col % 6;
+    const colors = ['#00d4ff','#7c3aed','#ec4899','#a78bfa','#f59e0b','#34d399'];
+    ctx.fillStyle = `rgba(${hexToRgb(colors[phase])},0.06)`;
+    ctx.fillRect(labelW + col*colW, 0, colW, c.height);
+    ctx.fillStyle = colors[phase];
+    ctx.font = "9px 'Share Tech Mono',monospace";
+    ctx.textAlign = 'center';
+    ctx.fillText(`T${phase}`, labelW + col*colW + colW/2, 18);
+  }
+
+  // Clock row
+  ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.5;
+  ctx.shadowBlur = 5; ctx.shadowColor = '#f59e0b';
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = "10px 'Share Tech Mono',monospace";
+  ctx.textAlign = 'right';
+  ctx.fillText('CLK', labelW - 8, rowH + rowH*0.4);
+  ctx.beginPath();
+  for (let col = 0; col < cols; col++) {
+    const x = labelW + col*colW;
+    const high = col%2===0;
+    if (col===0) ctx.moveTo(x, rowH + (high?10:26));
+    else { const ph = col%2===0; ctx.lineTo(x, rowH + (ph?26:10)); ctx.lineTo(x, rowH + (ph?10:26)); }
+    ctx.lineTo(x+colW, rowH + (high?10:26));
+  }
+  ctx.stroke(); ctx.shadowBlur = 0;
+
+  // Signal rows
+  signals.slice(1).forEach((sig, si) => {
+    const y = (si+2)*rowH;
+    const phases = phaseMap[sig] || [];
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = "10px 'Share Tech Mono',monospace";
+    ctx.textAlign = 'right';
+    ctx.fillText(sig, labelW-8, y + rowH*0.4);
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(labelW,y+rowH*0.5); ctx.lineTo(c.width,y+rowH*0.5); ctx.stroke();
+
+    for (let col=0; col<cols; col++) {
+      const phase = col%6;
+      const isHigh = phases.includes(phase);
+      const color = isHigh ? '#00d4ff' : '#1e293b';
+      const x = labelW + col*colW;
+      const prevHigh = col>0 ? phases.includes((col-1)%6) : false;
+      if (isHigh) {
+        ctx.fillStyle = 'rgba(0,212,255,0.08)';
+        ctx.fillRect(x, y+4, colW, rowH-8);
+      }
+      ctx.strokeStyle = color; ctx.lineWidth = isHigh?2:1;
+      if (isHigh) { ctx.shadowBlur=8; ctx.shadowColor='#00d4ff'; }
+      ctx.beginPath();
+      if (col===0) ctx.moveTo(x, y + (isHigh?8:rowH-8));
+      else {
+        ctx.moveTo(x, y + (prevHigh?8:rowH-8));
+        if (isHigh !== prevHigh) ctx.lineTo(x, y + (isHigh?8:rowH-8));
+      }
+      ctx.lineTo(x+colW, y + (isHigh?8:rowH-8));
+      ctx.stroke(); ctx.shadowBlur=0;
+    }
+  });
+}
+
+// ─── FSM DIAGRAM ───
+function drawFSM() {
+  const c = document.getElementById('fsmCanvas');
+  if (!c) return;
+  c.width = c.offsetWidth || 400;
+  c.height = 280;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+
+  const W = c.width, H = c.height;
+  const states = [
+    { label:'FETCH', x:W/2, y:50, color:'#00d4ff' },
+    { label:'DECODE', x:W*0.8, y:140, color:'#ec4899' },
+    { label:'EXECUTE', x:W*0.65, y:230, color:'#a78bfa' },
+    { label:'MEMORY', x:W*0.35, y:230, color:'#f59e0b' },
+    { label:'WRITEBACK', x:W*0.2, y:140, color:'#34d399' },
+  ];
+
+  // Arrows between states
+  const arcs = [[0,1],[1,2],[2,3],[3,4],[4,0],[2,4]];
+  arcs.forEach(([f,t]) => {
+    const fs = states[f], ts = states[t];
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(fs.x, fs.y);
+    ctx.lineTo(ts.x, ts.y);
+    ctx.stroke();
+    // Arrow
+    const angle = Math.atan2(ts.y-fs.y, ts.x-fs.x);
+    const mx = (fs.x+ts.x)/2, my = (fs.y+ts.y)/2;
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.moveTo(mx, my);
+    ctx.lineTo(mx-8*Math.cos(angle-0.3), my-8*Math.sin(angle-0.3));
+    ctx.lineTo(mx-8*Math.cos(angle+0.3), my-8*Math.sin(angle+0.3));
+    ctx.closePath(); ctx.fill();
+  });
+
+  // State circles
+  states.forEach((s, i) => {
+    const active = i === (state.currentPhase >= 0 ? Math.min(state.currentPhase, states.length-1) : 0);
+    ctx.shadowBlur = active ? 20 : 8;
+    ctx.shadowColor = s.color;
+    ctx.strokeStyle = s.color; ctx.lineWidth = active ? 2.5 : 1.5;
+    ctx.fillStyle = `rgba(${hexToRgb(s.color)},${active?0.2:0.07})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, 32, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = active ? s.color : 'rgba(255,255,255,0.5)';
+    ctx.font = `${active?'bold ':''} 10px 'Share Tech Mono',monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(s.label, s.x, s.y);
+  });
+}
+
+// ─── ARCHITECTURE DIAGRAM ───
+function drawArchDiagram() {
+  const wrap = document.getElementById('componentDiagramWrap');
+  if (!wrap) return;
+  const c = document.getElementById('diagramCanvas');
+  c.width = wrap.clientWidth;
+  c.height = wrap.clientHeight;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+  for (let x=0;x<W;x+=30){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for (let y=0;y<H;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  // Boxes
+  const boxes = [
+    { x:20, y:160, w:90, h:50, label:'INSTRUCTION\nREGISTER (IR)', color:'#ec4899' },
+    { x:140, y:160, w:90, h:50, label:'OPCODE\nDECODER', color:'#ef4444' },
+    { x:260, y:100, w:90, h:50, label:'SEQUENCE\nCOUNTER', color:'#f59e0b' },
+    { x:260, y:30, w:70, h:40, label:'CLOCK', color:'#06b6d4' },
+    { x:260, y:200, w:90, h:80, label:'HARDWIRED\nLOGIC\n(AND/OR/NOT)', color:'#00d4ff' },
+    { x:20, y:30, w:90, h:50, label:'CONDITION\nFLAGS', color:'#fbbf24' },
+    { x:380, y:140, w:80, h:130, label:'CONTROL\nSIGNALS\n(32 lines)', color:'#34d399' },
+  ];
+
+  const arrows = [
+    [1,2,'opcode'], [3,4,'clk'], [4,5,'T0–T5'], [5,6,'CU out'], [2,5,'decoded'], [1,6,'immediate'],
+  ];
+
+  // Arrows
+  arrows.forEach(([f,t,label]) => {
+    const fb = boxes[f], tb = boxes[t];
+    const fx = fb.x+fb.w/2, fy = fb.y+fb.h/2, tx = tb.x+tb.w/2, ty = tb.y+tb.h/2;
+    ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(fx,fy); ctx.lineTo(tx,ty); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.15)';
+    const angle=Math.atan2(ty-fy,tx-fx);
+    const mx=(fx+tx)/2,my=(fy+ty)/2;
+    ctx.beginPath(); ctx.moveTo(mx,my);
+    ctx.lineTo(mx-8*Math.cos(angle-0.3),my-8*Math.sin(angle-0.3));
+    ctx.lineTo(mx-8*Math.cos(angle+0.3),my-8*Math.sin(angle+0.3));
+    ctx.closePath(); ctx.fill();
+    ctx.font="9px 'Share Tech Mono',monospace"; ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.textAlign='center';
+    ctx.fillText(label,mx,my-6);
+  });
+
+  // Boxes
+  boxes.forEach(b => {
+    ctx.shadowBlur=12; ctx.shadowColor=b.color;
+    ctx.fillStyle=`rgba(${hexToRgb(b.color)},0.1)`;
+    roundRect(ctx,b.x,b.y,b.w,b.h,6); ctx.fill();
+    ctx.strokeStyle=b.color; ctx.lineWidth=1.5;
+    roundRect(ctx,b.x,b.y,b.w,b.h,6); ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.fillStyle=b.color; ctx.font="bold 9px 'Share Tech Mono',monospace"; ctx.textAlign='center'; ctx.textBaseline='middle';
+    const lines=b.label.split('\n');
+    lines.forEach((l,i)=>ctx.fillText(l,b.x+b.w/2,b.y+b.h/2+(i-(lines.length-1)/2)*13));
+  });
+}
+
+// ─── MICRO OPS DISPLAY ───
+function showMicroOps(name) {
+  document.querySelectorAll('#microInstrList .instr-item').forEach(el => {
+    el.classList.toggle('selected', el.querySelector('.instr-name')?.textContent === name);
+  });
+  const ops = MICRO_OPS[name] || [];
+  const el = document.getElementById('microOpsDisplay');
+  el.innerHTML = ops.map((op,i) => `
+    <div class="micro-op ${i===0?'active':''}" id="mop_${i}">
+      <span class="micro-step">${op.split(':')[0]}</span>
+      <span class="micro-text">${op.split(':').slice(1).join(':')}</span>
+    </div>`).join('');
+
+  // Animate through
+  ops.forEach((_,i) => {
+    setTimeout(() => {
+      document.querySelectorAll('.micro-op').forEach((el,j) => {
+        el.className = 'micro-op' + (j<i?' done':j===i?' active':'');
+      });
+    }, i * 600);
+  });
+
+  // RTL
+  const rtlMap = {
+    ADD:'T₀: MAR ← PC\nT₁: MDR ← M[MAR],  PC ← PC + 1\nT₂: IR ← MDR\nT₃: Rd ← Rs1 + Rs2,  {Z,C,N,V} ← flags',
+    SUB:'T₀: MAR ← PC\nT₁: MDR ← M[MAR],  PC ← PC + 1\nT₂: IR ← MDR\nT₃: Rd ← Rs1 − Rs2,  {Z,C,N,V} ← flags',
+    LW: 'T₀: MAR ← PC\nT₁: MDR ← M[MAR],  PC ← PC + 1\nT₂: IR ← MDR\nT₃: MAR ← Rs1 + imm\nT₄: MDR ← M[MAR]\nT₅: Rd ← MDR',
+    BEQ:'T₀: MAR ← PC\nT₁: MDR ← M[MAR],  PC ← PC + 1\nT₂: IR ← MDR\nT₃: temp ← Rs1 − Rs2\nT₄: if Z = 1: PC ← PC + IR[offset]',
+  };
+  document.getElementById('rtlDisplay').textContent = rtlMap[name] || ops.join('\n');
+}
+
+// ─── TAB SWITCHING ───
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+
+  if (name === 'simulator') { setTimeout(resize3D, 80); }
+
+  if (name === 'timing') { setTimeout(drawTimingDiagram, 50); }
+  if (name === 'architecture') { setTimeout(()=>{ drawArchDiagram(); }, 50); }
+  if (name === 'theory') { setTimeout(drawFSM, 50); }
+}
+
+// ─── STATUS TIME ───
+setInterval(() => {
+  const now = new Date();
+  document.getElementById('statusTime').textContent = now.toTimeString().slice(0,8);
+}, 1000);
+
+// ─── MEMORY HIGHLIGHT ───
+setInterval(() => {
+  const active = state.pc % 32;
+  document.querySelectorAll('.mem-cell').forEach((el,i) => {
+    el.className = 'mem-cell' + (i===active?' active':i===(active+1)%32?' fetched':'');
+  });
+}, 600);
+
+// ─── INIT ───
+document.getElementById('cfgDataWidth').value = String(state.config.dataWidth);
+document.getElementById('cfgRegCount').value = String(state.config.registerCount);
+document.getElementById('cfgMemSize').value = String(state.config.memorySize);
+document.getElementById('cfgMemLatency').value = String(state.config.memoryLatency);
+
+buildInstrList();
+buildMicroInstrList();
+buildRegGrid();
+buildSignalList();
+buildMemGrid();
+buildTruthTable();
+buildISAPanel();
+updateAssemblerPanel();
+buildTimingPanel();
+updateBreakpointsPanel();
+buildPipelinePanel();
+buildComparisonPanel();
+buildFaultInjectionPanel();
+buildScenariosPanel();
+buildLabsPanel();
+buildVisualizationPanel();
+showMicroOps('ADD');
+window.addEventListener('load', boot3D, { once: true });
+updateValidationPanel();
+setDiagnostics('info', 'Diagnostics ready', 'Start simulation to generate checks');
+addTrace('Diagnostics system initialized');
+updateEquationViewer();
+
+log('OK', 'Hardwired CU Simulator initialized');
+log('INFO', '16 instructions · 32 control signals · 6 phases');
+log('INFO', 'Select an instruction → Start Simulation');
+
+// Draw arch diagram on load (it's the second tab but draw it cached)
+setTimeout(() => { drawArchDiagram(); drawTimingDiagram(); drawFSM(); }, 300);
+</script>
+</body>
+</html>
